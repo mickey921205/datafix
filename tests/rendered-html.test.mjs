@@ -15,15 +15,15 @@ async function render() {
   );
 }
 
-test("server-renders the DataFix TW product shell", async () => {
+test("server-renders the global DataFix product shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /DataFix TW/);
-  assert.match(html, /台灣資料/);
-  assert.match(html, /把資料檔拖到這裡/);
-  assert.match(html, /資料只在你的瀏覽器處理/);
+  assert.match(html, /DataFix/);
+  assert.match(html, /Clean messy data/);
+  assert.match(html, /Drop a data file here/);
+  assert.match(html, /Your data never leaves this browser/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
@@ -33,7 +33,7 @@ test("removes starter-only assets and metadata", async () => {
     readFile(new URL("app/layout.tsx", root), "utf8"),
     readFile(new URL("package.json", root), "utf8"),
   ]);
-  assert.match(page, /DataFix TW/);
+  assert.match(page, /WORLD-READY DATA CLEANER/);
   assert.match(layout, /summary_large_image/);
   assert.doesNotMatch(layout, /Starter Project|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);

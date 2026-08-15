@@ -3,459 +3,277 @@
 import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
 
 type Row = string[];
-type Settings = {
-  trim: boolean;
-  normalizeWidth: boolean;
-  rocDate: boolean;
-  thousands: boolean;
-  missing: boolean;
-};
+type Locale = "en" | "zh";
+type DateOrder = "auto" | "dmy" | "mdy";
+type Settings = { trim: boolean; width: boolean; dates: boolean; numbers: boolean; missing: boolean; dateOrder: DateOrder };
+type ChangeKey = "width" | "spaces" | "missing" | "dates" | "numbers" | "headers";
 type Dataset = {
-  fileName: string;
-  encoding: string;
-  delimiter: string;
-  originalHeaders: string[];
-  headers: string[];
-  originalRows: Row[];
-  rows: Row[];
-  changes: Record<string, number>;
+  fileName: string; encoding: string; delimiter: string;
+  originalHeaders: string[]; headers: string[]; originalRows: Row[]; rows: Row[];
+  changes: Partial<Record<ChangeKey, number>>;
 };
 
-const defaultSettings: Settings = {
-  trim: true,
-  normalizeWidth: true,
-  rocDate: true,
-  thousands: true,
-  missing: true,
-};
+const messages = {
+  en: {
+    privacy: "Your data never leaves this browser", github: "Creator on GitHub ↗",
+    eyebrow: "LOCAL-FIRST · WORLD-READY DATA CLEANER",
+    title1: "Clean messy data.", title2: "Right in your browser.",
+    intro: "Fix CSV, TSV and JSON files from any region—without uploading sensitive data. Handle mixed encodings, dates, decimal styles, whitespace and missing values in seconds.",
+    rules: "Cleaning rules", on: "rules on",
+    trim: "Trim whitespace", trimHint: "Remove spaces around cell values",
+    width: "Normalize character width", widthHint: "Full-width Ａ１２３ → A123",
+    dates: "Standardize dates", datesHint: "Regional dates → ISO 2024-08-05",
+    numbers: "Normalize numbers", numbersHint: "1.234,50 or 1,234.50 → 1234.50",
+    missing: "Unify missing values", missingHint: "N/A, NULL, none and dashes → empty",
+    dateOrder: "Ambiguous date order", auto: "Auto — keep ambiguous", dmy: "Day / month / year", mdy: "Month / day / year",
+    privateTitle: "Private by design", privateText: "Files are processed locally on your device. Nothing is uploaded or stored.",
+    drop: "Drop a data file here", dropHint: "CSV, TSV, JSON or TXT · up to 10 MB / 50,000 rows",
+    choose: "Choose a file", demo: "Try global demo data →", replace: "Replace file",
+    rows: "rows", columns: "columns", encoding: "Encoding", format: "Format", changes: "Cells fixed", status: "Status",
+    ready: "Ready", detected: "Detected", local: "Local only", noChanges: "No changes were needed.",
+    cleaned: "Cleaned", original: "Original", showing: "Showing first", empty: "empty",
+    downloadTitle: "Ready to use", downloadHint: "Export clean UTF-8 files that open correctly across modern tools.",
+    json: "Download JSON", csv: "Download UTF-8 CSV ↓",
+    lowerEyebrow: "ONE TOOL · MANY REGIONS", lowerTitle: "Built for the files people actually exchange.",
+    f1: "Regional formats, one clean output", p1: "Convert European and US number styles, international dates, full-width characters and legacy encodings into portable data.",
+    f2: "Review every transformation", p2: "Compare original and cleaned values, see exactly what changed, and choose only the rules you trust.",
+    f3: "Private, fast and open-source ready", p3: "Everything runs in your browser. No account, no upload queue, and no sensitive spreadsheet sent to a server.",
+    footer: "Clean data without giving it away.",
+    errors: { rows: "The file needs a header row and at least one data row.", limit: "This version supports up to 50,000 data rows.", size: "Please choose a file smaller than 10 MB.", json: "JSON must contain an object or an array of objects.", generic: "This file could not be read." },
+    change: { width: "character width", spaces: "whitespace", missing: "missing values", dates: "dates", numbers: "numbers", headers: "headers" },
+  },
+  zh: {
+    privacy: "資料不會離開你的瀏覽器", github: "作者 GitHub ↗",
+    eyebrow: "本機處理 · 全球格式資料清理工具",
+    title1: "混亂資料，", title2: "在瀏覽器整理好。",
+    intro: "不用上傳敏感資料，就能清理各地的 CSV、TSV 與 JSON。一次處理多種編碼、日期、數字格式、空白與缺失值。",
+    rules: "清理規則", on: "項已開啟",
+    trim: "移除多餘空白", trimHint: "清除儲存格前後空白",
+    width: "統一字元寬度", widthHint: "全形 Ａ１２３ → A123",
+    dates: "標準化日期", datesHint: "各地日期 → ISO 2024-08-05",
+    numbers: "標準化數字", numbersHint: "1.234,50 或 1,234.50 → 1234.50",
+    missing: "統一缺失值", missingHint: "N/A、NULL、none、破折號 → 空值",
+    dateOrder: "模糊日期順序", auto: "自動—保留無法判斷者", dmy: "日／月／年", mdy: "月／日／年",
+    privateTitle: "隱私優先", privateText: "檔案只在你的裝置本機處理，不會上傳或儲存。",
+    drop: "把資料檔拖到這裡", dropHint: "CSV、TSV、JSON、TXT · 最大 10 MB／50,000 列",
+    choose: "選擇檔案", demo: "試用全球範例資料 →", replace: "更換檔案",
+    rows: "列", columns: "欄", encoding: "文字編碼", format: "資料格式", changes: "已修正", status: "資料狀態",
+    ready: "可以使用", detected: "自動偵測", local: "僅本機處理", noChanges: "資料不需要修改。",
+    cleaned: "清理後", original: "原始資料", showing: "顯示前", empty: "空值",
+    downloadTitle: "清理完成", downloadHint: "匯出 UTF-8 格式，可在現代試算表與資料工具正確開啟。",
+    json: "下載 JSON", csv: "下載 UTF-8 CSV ↓",
+    lowerEyebrow: "一個工具 · 處理全球資料", lowerTitle: "專為人們真正交換的資料檔打造。",
+    f1: "各地格式，統一輸出", p1: "處理歐美數字格式、國際日期、全形字元與傳統編碼，輸出可攜的標準資料。",
+    f2: "每次修改都看得見", p2: "比較原始與清理後內容、確認修改數量，並自行選擇可信任的規則。",
+    f3: "隱私、快速、適合開源", p3: "所有工作都在瀏覽器完成，不必註冊、不必排隊，也不用把敏感試算表交給伺服器。",
+    footer: "整理資料，不必交出資料。",
+    errors: { rows: "檔案至少需要一列標題與一列資料。", limit: "目前版本最多支援 50,000 列資料。", size: "請選擇小於 10 MB 的檔案。", json: "JSON 必須是物件或物件陣列。", generic: "無法讀取這個檔案。" },
+    change: { width: "字元寬度", spaces: "多餘空白", missing: "缺失值", dates: "日期", numbers: "數字", headers: "欄位名稱" },
+  },
+} as const;
 
-const delimiterLabel: Record<string, string> = {
-  ",": "逗號 CSV",
-  "\t": "Tab TSV",
-  ";": "分號",
-  "|": "直線",
-  json: "JSON",
-};
+const defaults: Settings = { trim: true, width: true, dates: true, numbers: true, missing: true, dateOrder: "auto" };
+const delimiterNames: Record<string, string> = { ",": "Comma CSV", "\t": "Tab TSV", ";": "Semicolon", "|": "Pipe", json: "JSON" };
+const demo = `name,city,date,amount,email,status
+ "Alice" ,London,31/12/2024,"1,234.50",alice@example.com, active
+Bob,Berlin,31.12.2024,"1.234,50",bob@example.de,N/A
+山田,Tokyo,2024/12/31,"１２３４５０",yamada@example.jp,active
+小明,Taipei,113/08/05,"1,280,500",ming@example.tw,NULL
+Ana,São Paulo,31-12-2024,"1 234,50",ana@example.br,active`;
 
-const demoText = `姓名,交易日期,成交金額,電子郵件,備註
-  王小明  ,113/08/05,"1,280,500",ming@example.com, Ａ級客戶 
-陳美華,民國112年12月31日," 92,400 ",N/A,　待確認
-林志強,111-3-9,"3,050",lin@example.com,NULL
-王小明,2024-08-08,"1,280,500",ming@example.com, 重複資料 `;
-
-function normalizeHeader(value: string, index: number) {
-  const cleaned = value.normalize("NFKC").trim() || `未命名欄位_${index + 1}`;
-  return cleaned;
-}
-
-function uniqueHeaders(headers: string[]) {
+function uniqueHeaders(values: string[]) {
   const counts = new Map<string, number>();
-  return headers.map((header) => {
-    const count = (counts.get(header) ?? 0) + 1;
-    counts.set(header, count);
-    return count === 1 ? header : `${header}_${count}`;
+  return values.map((value, index) => {
+    const clean = value.normalize("NFKC").trim() || `column_${index + 1}`;
+    const count = (counts.get(clean) ?? 0) + 1;
+    counts.set(clean, count);
+    return count === 1 ? clean : `${clean}_${count}`;
   });
 }
 
 function detectDelimiter(text: string) {
   const sample = text.split(/\r?\n/).slice(0, 8).join("\n");
-  const candidates = [",", "\t", ";", "|"];
-  let best = ",";
-  let bestScore = -1;
-  for (const candidate of candidates) {
-    let score = 0;
-    let quoted = false;
-    for (let i = 0; i < sample.length; i++) {
-      if (sample[i] === '"') quoted = !quoted;
-      if (!quoted && sample[i] === candidate) score++;
-    }
-    if (score > bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  }
-  return best;
+  return [",", "\t", ";", "|"].map((delimiter) => {
+    let score = 0, quoted = false;
+    for (const char of sample) { if (char === '"') quoted = !quoted; else if (!quoted && char === delimiter) score++; }
+    return { delimiter, score };
+  }).sort((a, b) => b.score - a.score)[0].delimiter;
 }
 
 function parseDelimited(text: string, delimiter: string): Row[] {
-  const rows: Row[] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-
+  const rows: Row[] = []; let row: Row = []; let field = ""; let quoted = false;
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     if (char === '"') {
-      if (quoted && text[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (char === delimiter && !quoted) {
-      row.push(field);
-      field = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (quoted && text[i + 1] === '"') { field += '"'; i++; } else quoted = !quoted;
+    } else if (char === delimiter && !quoted) { row.push(field); field = ""; }
+    else if ((char === "\n" || char === "\r") && !quoted) {
       if (char === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
-      if (row.some((cell) => cell.length > 0)) rows.push(row);
-      row = [];
-      field = "";
-    } else {
-      field += char;
-    }
+      row.push(field); if (row.some(Boolean)) rows.push(row); row = []; field = "";
+    } else field += char;
   }
-  row.push(field);
-  if (row.some((cell) => cell.length > 0)) rows.push(row);
+  row.push(field); if (row.some(Boolean)) rows.push(row);
   return rows;
 }
 
-function cleanCell(input: string, settings: Settings) {
-  let value = input;
-  const flags: string[] = [];
+function normalizeDate(value: string, order: DateOrder) {
+  const match = value.replace(/^民國/, "").replace(/[年月.]/g, "/").replace(/日$/, "").match(/^(\d{1,4})[\/-](\d{1,2})[\/-](\d{1,4})$/);
+  if (!match) return value;
+  const [a, b, c] = match.slice(1).map(Number); let year: number, month: number, day: number;
+  if (match[1].length >= 3 || a > 31) { year = a < 300 ? a + 1911 : a; month = b; day = c; }
+  else {
+    year = c < 300 ? c + 1911 : c;
+    if (a > 12) { day = a; month = b; }
+    else if (b > 12) { month = a; day = b; }
+    else if (order === "dmy") { day = a; month = b; }
+    else if (order === "mdy") { month = a; day = b; }
+    else return value;
+  }
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : value;
+}
 
-  if (settings.normalizeWidth) {
-    const next = value.normalize("NFKC");
-    if (next !== value) flags.push("全形字元");
-    value = next;
-  }
-  if (settings.trim) {
-    const next = value.trim();
-    if (next !== value) flags.push("多餘空白");
-    value = next;
-  }
-  if (settings.missing && /^(n\/?a|null|none|undefined|-|—)$/i.test(value)) {
-    value = "";
-    flags.push("缺失值");
-  }
-  if (settings.rocDate && value) {
-    const normalizedDate = value.replace(/^民國/, "").replace(/[年月]/g, "/").replace(/日$/, "");
-    const match = normalizedDate.match(/^(\d{2,3})[/.\-](\d{1,2})[/.\-](\d{1,2})$/);
-    if (match) {
-      const year = Number(match[1]);
-      if (year > 0 && year < 300) {
-        value = `${year + 1911}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
-        flags.push("民國日期");
-      }
-    }
-  }
-  if (settings.thousands && /^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(value)) {
-    value = value.replaceAll(",", "");
-    flags.push("千分位");
-  }
+function normalizeNumber(value: string) {
+  let raw = value.replace(/[\u00A0\u202F ]/g, "").replace(/[’']/g, "");
+  const parenthesized = /^\(.+\)$/.test(raw); if (parenthesized) raw = raw.slice(1, -1);
+  if (!/^[-+]?\d[\d.,]*$/.test(raw)) return value;
+  const comma = raw.lastIndexOf(","), dot = raw.lastIndexOf(".");
+  if (comma >= 0 && dot >= 0) raw = comma > dot ? raw.replaceAll(".", "").replace(",", ".") : raw.replaceAll(",", "");
+  else if (comma >= 0) { const parts = raw.split(","); raw = parts.length > 2 || parts.at(-1)?.length === 3 ? parts.join("") : `${parts[0]}.${parts[1]}`; }
+  else if (dot >= 0) { const parts = raw.split("."); if (parts.length > 2 || parts[1]?.length === 3) raw = parts.join(""); }
+  return /^[-+]?\d+(\.\d+)?$/.test(raw) ? (parenthesized ? `-${raw}` : raw) : value;
+}
+
+function cleanCell(input: string, settings: Settings) {
+  let value = input; const flags: ChangeKey[] = [];
+  const apply = (next: string, flag: ChangeKey) => { if (next !== value) flags.push(flag); value = next; };
+  if (settings.width) apply(value.normalize("NFKC"), "width");
+  if (settings.trim) apply(value.trim(), "spaces");
+  if (settings.missing && /^(n\/?a|null|none|undefined|nil|-|—|–)$/i.test(value)) apply("", "missing");
+  if (settings.dates && value) apply(normalizeDate(value, settings.dateOrder), "dates");
+  if (settings.numbers && value) apply(normalizeNumber(value), "numbers");
   return { value, flags };
 }
 
-function inferType(values: string[]) {
-  const present = values.filter(Boolean);
-  if (!present.length) return "空值";
-  if (present.every((value) => /^[-+]?\d+(\.\d+)?$/.test(value))) return "數字";
-  if (present.every((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))) return "日期";
-  if (present.every((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) return "Email";
-  return "文字";
-}
-
-function buildDataset(
-  rows: Row[],
-  fileName: string,
-  encoding: string,
-  delimiter: string,
-  settings: Settings,
-): Dataset {
+function buildDataset(rows: Row[], fileName: string, encoding: string, delimiter: string, settings: Settings): Dataset {
   const width = Math.max(...rows.map((row) => row.length), 1);
-  const originalHeaders = Array.from({ length: width }, (_, index) => rows[0]?.[index] ?? "");
-  const headers = uniqueHeaders(originalHeaders.map(normalizeHeader));
-  const originalRows = rows.slice(1).map((row) =>
-    Array.from({ length: width }, (_, index) => row[index] ?? ""),
-  );
-  const changes: Record<string, number> = {};
-  const cleanedRows = originalRows.map((row) =>
-    row.map((cell) => {
-      const cleaned = cleanCell(cell, settings);
-      cleaned.flags.forEach((flag) => (changes[flag] = (changes[flag] ?? 0) + 1));
-      return cleaned.value;
-    }),
-  );
-  originalHeaders.forEach((header, index) => {
-    if (header !== headers[index]) changes["欄位名稱"] = (changes["欄位名稱"] ?? 0) + 1;
-  });
-  return {
-    fileName,
-    encoding,
-    delimiter,
-    originalHeaders,
-    headers,
-    originalRows,
-    rows: cleanedRows,
-    changes,
-  };
+  const originalHeaders = Array.from({ length: width }, (_, i) => rows[0]?.[i] ?? "");
+  const headers = uniqueHeaders(originalHeaders);
+  const originalRows = rows.slice(1).map((row) => Array.from({ length: width }, (_, i) => row[i] ?? ""));
+  const changes: Partial<Record<ChangeKey, number>> = {};
+  const cleaned = originalRows.map((row) => row.map((cell) => {
+    const result = cleanCell(cell, settings);
+    result.flags.forEach((flag) => { changes[flag] = (changes[flag] ?? 0) + 1; });
+    return result.value;
+  }));
+  originalHeaders.forEach((header, i) => { if (header !== headers[i]) changes.headers = (changes.headers ?? 0) + 1; });
+  return { fileName, encoding, delimiter, originalHeaders, headers, originalRows, rows: cleaned, changes };
 }
 
-function escapeCsv(value: string) {
-  return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+function decode(buffer: ArrayBuffer) {
+  try { return { text: new TextDecoder("utf-8", { fatal: true }).decode(buffer), encoding: "UTF-8" }; }
+  catch {
+    const candidates = [["Big5", "big5"], ["Shift-JIS", "shift_jis"], ["Windows-1252", "windows-1252"]].map(([label, name]) => {
+      const text = new TextDecoder(name).decode(buffer);
+      const score = (text.match(/�/g) ?? []).length * 30 + (text.match(/[\u0000-\u0008\u000E-\u001F]/g) ?? []).length * 20 + (name === "windows-1252" ? (text.match(/[À-ÿ]/g) ?? []).length * 4 : 0);
+      return { text, encoding: label, score };
+    }).sort((a, b) => a.score - b.score);
+    return candidates[0];
+  }
 }
 
-function downloadFile(content: string, type: string, fileName: string) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
+function infer(values: string[]) {
+  const present = values.filter(Boolean);
+  if (!present.length) return "empty";
+  if (present.every((v) => /^[-+]?\d+(\.\d+)?$/.test(v))) return "number";
+  if (present.every((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))) return "date";
+  if (present.every((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))) return "email";
+  return "text";
 }
 
-function Toggle({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <button className="setting-row" type="button" role="switch" aria-checked={checked} onClick={onChange}>
-      <span>
-        <strong>{label}</strong>
-        <small>{hint}</small>
-      </span>
-      <span className={`toggle ${checked ? "on" : ""}`} aria-hidden="true"><i /></span>
-    </button>
-  );
+function download(content: string, type: string, name: string) {
+  const url = URL.createObjectURL(new Blob([content], { type })); const a = document.createElement("a");
+  a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+}
+function escapeCsv(value: string) { return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value; }
+
+function Toggle({ label, hint, checked, action }: { label: string; hint: string; checked: boolean; action: () => void }) {
+  return <button className="setting-row" type="button" role="switch" aria-checked={checked} onClick={action}><span><strong>{label}</strong><small>{hint}</small></span><span className={`toggle ${checked ? "on" : ""}`}><i /></span></button>;
 }
 
 export default function Home() {
-  const [settings, setSettings] = useState(defaultSettings);
-  const [dataset, setDataset] = useState<Dataset | null>(null);
-  const [rawRows, setRawRows] = useState<Row[] | null>(null);
+  const [locale, setLocale] = useState<Locale>("en"); const t = messages[locale];
+  const [settings, setSettings] = useState(defaults);
+  const [dataset, setDataset] = useState<Dataset | null>(null); const [rawRows, setRawRows] = useState<Row[] | null>(null);
   const [source, setSource] = useState({ fileName: "", encoding: "", delimiter: "," });
-  const [view, setView] = useState<"clean" | "original">("clean");
-  const [dragging, setDragging] = useState(false);
-  const [error, setError] = useState("");
+  const [view, setView] = useState<"clean" | "original">("clean"); const [dragging, setDragging] = useState(false); const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const types = useMemo(() => dataset ? dataset.headers.map((_, i) => infer(dataset.rows.map((row) => row[i] ?? ""))) : [], [dataset]);
+  const total = dataset ? Object.values(dataset.changes).reduce((sum, count) => sum + (count ?? 0), 0) : 0;
 
-  const types = useMemo(() => {
-    if (!dataset) return [];
-    return dataset.headers.map((_, index) => inferType(dataset.rows.map((row) => row[index] ?? "")));
-  }, [dataset]);
-
-  const totalChanges = dataset
-    ? Object.values(dataset.changes).reduce((sum, value) => sum + value, 0)
-    : 0;
-
-  function refresh(nextSettings: Settings) {
-    setSettings(nextSettings);
-    if (rawRows) {
-      setDataset(buildDataset(rawRows, source.fileName, source.encoding, source.delimiter, nextSettings));
-    }
-  }
-
+  function refresh(next: Settings) { setSettings(next); if (rawRows) setDataset(buildDataset(rawRows, source.fileName, source.encoding, source.delimiter, next)); }
   function loadRows(rows: Row[], fileName: string, encoding: string, delimiter: string) {
-    if (rows.length < 2) throw new Error("檔案至少需要一列欄位名稱和一列資料。 ");
-    if (rows.length > 50001) throw new Error("第一版最多處理 50,000 筆資料。 ");
-    setRawRows(rows);
-    setSource({ fileName, encoding, delimiter });
-    setDataset(buildDataset(rows, fileName, encoding, delimiter, settings));
-    setView("clean");
-    setError("");
+    if (rows.length < 2) throw new Error(t.errors.rows); if (rows.length > 50001) throw new Error(t.errors.limit);
+    setRawRows(rows); setSource({ fileName, encoding, delimiter }); setDataset(buildDataset(rows, fileName, encoding, delimiter, settings)); setView("clean"); setError("");
   }
-
   async function processFile(file: File) {
     try {
-      if (file.size > 10 * 1024 * 1024) throw new Error("檔案請控制在 10 MB 以內。 ");
-      const buffer = await file.arrayBuffer();
-      let text = "";
-      let encoding = "UTF-8";
-      try {
-        text = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-      } catch {
-        text = new TextDecoder("big5").decode(buffer);
-        encoding = "Big5";
-      }
-      text = text.replace(/^\uFEFF/, "");
+      if (file.size > 10 * 1024 * 1024) throw new Error(t.errors.size);
+      const decoded = decode(await file.arrayBuffer()); const text = decoded.text.replace(/^\uFEFF/, "");
       if (file.name.toLowerCase().endsWith(".json")) {
-        const parsed = JSON.parse(text) as unknown;
-        const records = Array.isArray(parsed) ? parsed : [parsed];
-        if (!records.every((record) => record && typeof record === "object" && !Array.isArray(record))) {
-          throw new Error("JSON 頂層必須是物件或物件陣列。 ");
-        }
-        const headers = Array.from(new Set(records.flatMap((record) => Object.keys(record as Record<string, unknown>))));
-        const rows: Row[] = [headers, ...records.map((record) => headers.map((header) => {
-          const value = (record as Record<string, unknown>)[header];
-          return value == null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
-        }))];
-        loadRows(rows, file.name, encoding, "json");
-      } else {
-        const delimiter = detectDelimiter(text);
-        loadRows(parseDelimited(text, delimiter), file.name, encoding, delimiter);
-      }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "無法讀取這個檔案。 ");
-    }
+        const parsed = JSON.parse(text) as unknown; const records = Array.isArray(parsed) ? parsed : [parsed];
+        if (!records.every((r) => r && typeof r === "object" && !Array.isArray(r))) throw new Error(t.errors.json);
+        const headers = Array.from(new Set(records.flatMap((r) => Object.keys(r as Record<string, unknown>))));
+        loadRows([headers, ...records.map((r) => headers.map((h) => { const v = (r as Record<string, unknown>)[h]; return v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); }))], file.name, decoded.encoding, "json");
+      } else { const delimiter = detectDelimiter(text); loadRows(parseDelimited(text, delimiter), file.name, decoded.encoding, delimiter); }
+    } catch (e) { setError(e instanceof Error ? e.message : t.errors.generic); }
   }
-
-  function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) void processFile(file);
-    event.target.value = "";
+  function fileChanged(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (file) void processFile(file); event.target.value = ""; }
+  function dropped(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files?.[0]; if (file) void processFile(file); }
+  function csv() {
+    if (!dataset) return; const body = [dataset.headers, ...dataset.rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    download(`\uFEFF${body}`, "text/csv;charset=utf-8", `${dataset.fileName.replace(/\.[^.]+$/, "")}_clean.csv`);
   }
-
-  function onDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    setDragging(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) void processFile(file);
+  function json() {
+    if (!dataset) return; const rows = dataset.rows.map((row) => Object.fromEntries(dataset.headers.map((h, i) => [h, row[i] ?? ""])));
+    download(JSON.stringify(rows, null, 2), "application/json", `${dataset.fileName.replace(/\.[^.]+$/, "")}_clean.json`);
   }
+  const headers = dataset ? (view === "clean" ? dataset.headers : dataset.originalHeaders) : [];
+  const rows = dataset ? (view === "clean" ? dataset.rows : dataset.originalRows) : [];
 
-  function loadDemo() {
-    loadRows(parseDelimited(demoText, ","), "台灣客戶資料_範例.csv", "UTF-8", ",");
-  }
-
-  function downloadCsv() {
-    if (!dataset) return;
-    const content = [dataset.headers, ...dataset.rows]
-      .map((row) => row.map(escapeCsv).join(","))
-      .join("\r\n");
-    const base = dataset.fileName.replace(/\.[^.]+$/, "");
-    downloadFile(`\uFEFF${content}`, "text/csv;charset=utf-8", `${base}_clean.csv`);
-  }
-
-  function downloadJson() {
-    if (!dataset) return;
-    const records = dataset.rows.map((row) =>
-      Object.fromEntries(dataset.headers.map((header, index) => [header, row[index] ?? ""])),
-    );
-    const base = dataset.fileName.replace(/\.[^.]+$/, "");
-    downloadFile(JSON.stringify(records, null, 2), "application/json", `${base}_clean.json`);
-  }
-
-  const shownHeaders = dataset ? (view === "clean" ? dataset.headers : dataset.originalHeaders) : [];
-  const shownRows = dataset ? (view === "clean" ? dataset.rows : dataset.originalRows) : [];
-
-  return (
-    <main>
-      <header className="site-header">
-        <a className="brand" href="#top" aria-label="DataFix TW 首頁">
-          <span className="brand-mark">DF</span>
-          <span>DataFix <b>TW</b></span>
-        </a>
-        <div className="privacy-pill"><span>●</span> 資料只在你的瀏覽器處理</div>
-        <a className="github-link" href="https://github.com/mickey921205" target="_blank" rel="noreferrer">作者 GitHub ↗</a>
-      </header>
-
-      <section className="hero" id="top">
-        <div>
-          <p className="eyebrow">LOCAL-FIRST DATA CLEANER</p>
-          <h1>台灣資料，<br /><em>整理好了。</em></h1>
-          <p className="hero-copy">修好 Big5 亂碼、民國日期、千分位與全形字元。<br />不用上傳，不用登入，整理完直接下載。</p>
-          <div className="format-list">
-            <span>CSV</span><span>TSV</span><span>JSON</span><span>BIG5</span><span>UTF-8</span>
-          </div>
-        </div>
-        <div className="hero-aside" aria-hidden="true">
-          <span>113/08/05</span>
-          <strong>→</strong>
-          <span>2024-08-05</span>
-          <div className="mini-grid"><i /><i /><i /><i /><i /><i /></div>
-        </div>
-      </section>
-
-      <section className="workspace">
-        <aside className="settings-panel">
-          <div className="panel-heading">
-            <p>清理規則</p><span>{Object.values(settings).filter(Boolean).length} 項開啟</span>
-          </div>
-          <Toggle label="移除多餘空白" hint="欄位前後空白與全形空格" checked={settings.trim} onChange={() => refresh({ ...settings, trim: !settings.trim })} />
-          <Toggle label="統一全形字元" hint="ＡＢＣ、１２３ 轉為半形" checked={settings.normalizeWidth} onChange={() => refresh({ ...settings, normalizeWidth: !settings.normalizeWidth })} />
-          <Toggle label="民國日期轉西元" hint="113/08/05 → 2024-08-05" checked={settings.rocDate} onChange={() => refresh({ ...settings, rocDate: !settings.rocDate })} />
-          <Toggle label="移除數字千分位" hint="1,280,500 → 1280500" checked={settings.thousands} onChange={() => refresh({ ...settings, thousands: !settings.thousands })} />
-          <Toggle label="統一缺失值" hint="N/A、NULL、— 轉為空值" checked={settings.missing} onChange={() => refresh({ ...settings, missing: !settings.missing })} />
-          <div className="safe-note"><b>隱私優先</b><p>檔案內容不會離開這台裝置，也不會儲存在任何伺服器。</p></div>
-        </aside>
-
-        <div className="main-panel">
-          {!dataset ? (
-            <div
-              className={`dropzone ${dragging ? "dragging" : ""}`}
-              onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={onDrop}
-            >
-              <input ref={fileInput} type="file" accept=".csv,.tsv,.json,.txt,text/csv,text/tab-separated-values,application/json" onChange={onFileChange} />
-              <div className="drop-icon">↓</div>
-              <h2>把資料檔拖到這裡</h2>
-              <p>支援 CSV、TSV、JSON，單檔最大 10 MB</p>
-              <div className="drop-actions">
-                <button className="primary-button" type="button" onClick={() => fileInput.current?.click()}>選擇檔案</button>
-                <button className="text-button" type="button" onClick={loadDemo}>或先試試範例資料 →</button>
-              </div>
-              {error && <p className="error-message" role="alert">{error}</p>}
-            </div>
-          ) : (
-            <div className="results">
-              <div className="results-topbar">
-                <div className="file-title">
-                  <span className="file-icon">▦</span>
-                  <div><strong>{dataset.fileName}</strong><small>{dataset.rows.length.toLocaleString()} 列 × {dataset.headers.length} 欄</small></div>
-                </div>
-                <button className="replace-button" type="button" onClick={() => fileInput.current?.click()}>更換檔案</button>
-                <input ref={fileInput} className="hidden-input" type="file" accept=".csv,.tsv,.json,.txt" onChange={onFileChange} />
-              </div>
-
-              <div className="summary-grid">
-                <article><small>偵測編碼</small><strong>{dataset.encoding}</strong><span className="status-dot">自動</span></article>
-                <article><small>資料格式</small><strong>{delimiterLabel[dataset.delimiter] ?? "文字資料"}</strong><span>已辨識</span></article>
-                <article><small>已修正</small><strong>{totalChanges.toLocaleString()} <i>格</i></strong><span>依目前規則</span></article>
-                <article><small>資料狀態</small><strong className="ready">可以下載</strong><span>✓ 完成</span></article>
-              </div>
-
-              <div className="change-strip">
-                {Object.entries(dataset.changes).length ? Object.entries(dataset.changes).map(([name, count]) => (
-                  <span key={name}><b>{count}</b> {name}</span>
-                )) : <span>沒有發現需要修正的內容</span>}
-              </div>
-
-              <div className="table-toolbar">
-                <div><button className={view === "clean" ? "active" : ""} onClick={() => setView("clean")}>整理後</button><button className={view === "original" ? "active" : ""} onClick={() => setView("original")}>原始資料</button></div>
-                <small>顯示前 {Math.min(shownRows.length, 20)} 列</small>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead><tr><th>#</th>{shownHeaders.map((header, index) => <th key={`${header}-${index}`}><span>{header || "(空白欄位)"}</span><small>{types[index]}</small></th>)}</tr></thead>
-                  <tbody>{shownRows.slice(0, 20).map((row, rowIndex) => (
-                    <tr key={rowIndex}><td>{rowIndex + 1}</td>{shownHeaders.map((_, columnIndex) => {
-                      const value = row[columnIndex] ?? "";
-                      const changed = dataset.originalRows[rowIndex]?.[columnIndex] !== dataset.rows[rowIndex]?.[columnIndex];
-                      return <td key={columnIndex} className={view === "clean" && changed ? "changed" : ""}>{value || <span className="empty">空值</span>}</td>;
-                    })}</tr>
-                  ))}</tbody>
-                </table>
-              </div>
-
-              <div className="download-bar">
-                <div><strong>整理完成</strong><p>輸出採 UTF-8，Excel 可直接開啟。</p></div>
-                <button className="secondary-button" type="button" onClick={downloadJson}>下載 JSON</button>
-                <button className="primary-button" type="button" onClick={downloadCsv}>下載乾淨 CSV ↓</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="explain-section">
-        <p className="eyebrow">BUILT FOR REAL-WORLD TAIWAN DATA</p>
-        <h2>不是魔法，是把麻煩事做好。</h2>
-        <div className="feature-grid">
-          <article><span>01</span><h3>辨識台灣常見格式</h3><p>Big5、民國日期、全形字元與 Excel 常見輸出，不再逐欄修正。</p></article>
-          <article><span>02</span><h3>每一筆修改都看得見</h3><p>切換原始與整理後資料，所有變更格都有清楚標記。</p></article>
-          <article><span>03</span><h3>資料留在你的電腦</h3><p>完全在瀏覽器內完成，不上傳、不追蹤檔案內容，也不需要帳號。</p></article>
-        </div>
-      </section>
-
-      <footer><span>DataFix TW</span><p>開源、免費，為台灣的資料工作者打造。</p><a href="https://github.com/mickey921205" target="_blank" rel="noreferrer">作者 GitHub ↗</a></footer>
-    </main>
-  );
+  return <main>
+    <header className="site-header">
+      <a className="brand" href="#top"><span className="brand-mark">DF</span><span>Data<b>Fix</b></span></a>
+      <div className="privacy-pill"><span>●</span>{t.privacy}</div>
+      <nav className="header-actions"><div className="language-switch"><button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button><button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>繁中</button></div><a className="github-link" href="https://github.com/mickey921205" target="_blank" rel="noreferrer">{t.github}</a></nav>
+    </header>
+    <section className="hero" id="top"><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.title1}<br /><em>{t.title2}</em></h1><p className="hero-copy">{t.intro}</p><div className="format-list"><span>CSV</span><span>TSV</span><span>JSON</span><span>UTF-8</span><span>BIG5</span><span>SHIFT-JIS</span><span>WIN-1252</span></div></div><div className="hero-aside" aria-hidden="true"><span>1.234,50</span><strong>→</strong><span>1234.50</span><span>31/12/24</span><strong>→</strong><span>2024-12-31</span><div className="mini-grid"><i /><i /><i /><i /><i /><i /></div></div></section>
+    <section className="workspace">
+      <aside className="settings-panel"><div className="panel-heading"><p>{t.rules}</p><span>{Object.values(settings).filter((v) => v === true).length} {t.on}</span></div>
+        <Toggle label={t.trim} hint={t.trimHint} checked={settings.trim} action={() => refresh({ ...settings, trim: !settings.trim })} />
+        <Toggle label={t.width} hint={t.widthHint} checked={settings.width} action={() => refresh({ ...settings, width: !settings.width })} />
+        <Toggle label={t.dates} hint={t.datesHint} checked={settings.dates} action={() => refresh({ ...settings, dates: !settings.dates })} />
+        {settings.dates && <label className="select-row"><span>{t.dateOrder}</span><select value={settings.dateOrder} onChange={(e) => refresh({ ...settings, dateOrder: e.target.value as DateOrder })}><option value="auto">{t.auto}</option><option value="dmy">{t.dmy}</option><option value="mdy">{t.mdy}</option></select></label>}
+        <Toggle label={t.numbers} hint={t.numbersHint} checked={settings.numbers} action={() => refresh({ ...settings, numbers: !settings.numbers })} />
+        <Toggle label={t.missing} hint={t.missingHint} checked={settings.missing} action={() => refresh({ ...settings, missing: !settings.missing })} />
+        <div className="safe-note"><b>◉ {t.privateTitle}</b><p>{t.privateText}</p></div>
+      </aside>
+      <div className="main-panel">{!dataset ?
+        <div className={`dropzone ${dragging ? "dragging" : ""}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={dropped}>
+          <input ref={fileInput} type="file" accept=".csv,.tsv,.json,.txt" onChange={fileChanged} /><div className="drop-icon">+</div><h2>{t.drop}</h2><p>{t.dropHint}</p><div className="drop-actions"><button className="primary-button" onClick={() => fileInput.current?.click()}>{t.choose}</button><button className="text-button" onClick={() => loadRows(parseDelimited(demo, ","), "global_messy_data.csv", "UTF-8", ",")}>{t.demo}</button></div>{error && <p className="error-message" role="alert">{error}</p>}
+        </div> :
+        <div className="results">
+          <div className="results-topbar"><div className="file-title"><span className="file-icon">▦</span><div><strong>{dataset.fileName}</strong><small>{dataset.rows.length.toLocaleString()} {t.rows} · {dataset.headers.length} {t.columns}</small></div></div><button className="replace-button" onClick={() => fileInput.current?.click()}>{t.replace}</button><input ref={fileInput} className="hidden-input" type="file" accept=".csv,.tsv,.json,.txt" onChange={fileChanged} /></div>
+          <div className="summary-grid"><article><small>{t.encoding}</small><strong>{dataset.encoding}</strong><span className="status-dot">{t.detected}</span></article><article><small>{t.format}</small><strong>{delimiterNames[dataset.delimiter] ?? "Delimited"}</strong><span>{t.detected}</span></article><article><small>{t.changes}</small><strong>{total.toLocaleString()} <i>cells</i></strong><span>{t.local}</span></article><article><small>{t.status}</small><strong className="ready">{t.ready}</strong><span>✓</span></article></div>
+          <div className="change-strip">{Object.entries(dataset.changes).length ? Object.entries(dataset.changes).map(([name, count]) => <span key={name}><b>{count}</b> {t.change[name as ChangeKey]}</span>) : <span>{t.noChanges}</span>}</div>
+          <div className="table-toolbar"><div><button className={view === "clean" ? "active" : ""} onClick={() => setView("clean")}>{t.cleaned}</button><button className={view === "original" ? "active" : ""} onClick={() => setView("original")}>{t.original}</button></div><small>{t.showing} {Math.min(rows.length, 20)}</small></div>
+          <div className="table-wrap"><table><thead><tr><th>#</th>{headers.map((h, i) => <th key={`${h}-${i}`}><span>{h || "(unnamed)"}</span><small>{types[i]}</small></th>)}</tr></thead><tbody>{rows.slice(0, 20).map((row, ri) => <tr key={ri}><td>{ri + 1}</td>{headers.map((_, ci) => { const value = row[ci] ?? ""; const changed = dataset.originalRows[ri]?.[ci] !== dataset.rows[ri]?.[ci]; return <td key={ci} className={view === "clean" && changed ? "changed" : ""}>{value || <span className="empty">{t.empty}</span>}</td>; })}</tr>)}</tbody></table></div>
+          <div className="download-bar"><div><strong>{t.downloadTitle}</strong><p>{t.downloadHint}</p></div><button className="secondary-button" onClick={json}>{t.json}</button><button className="primary-button" onClick={csv}>{t.csv}</button></div>
+        </div>}
+      </div>
+    </section>
+    <section className="explain-section"><p className="eyebrow">{t.lowerEyebrow}</p><h2>{t.lowerTitle}</h2><div className="feature-grid"><article><span>01</span><h3>{t.f1}</h3><p>{t.p1}</p></article><article><span>02</span><h3>{t.f2}</h3><p>{t.p2}</p></article><article><span>03</span><h3>{t.f3}</h3><p>{t.p3}</p></article></div></section>
+    <footer><span>DataFix</span><p>{t.footer}</p><a href="https://github.com/mickey921205" target="_blank" rel="noreferrer">{t.github}</a></footer>
+  </main>;
 }

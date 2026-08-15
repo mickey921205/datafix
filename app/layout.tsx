@@ -7,34 +7,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   const base = new URL(`${protocol}://${host}`);
-  const title = "DataFix TW — 台灣資料清理工具";
-  const description = "在瀏覽器本機修好 Big5 亂碼、民國日期、千分位與全形字元。免費、不用登入，資料不離開裝置。";
-  const image = new URL("/og.png", base).toString();
-
+  const title = "DataFix — Clean messy data in your browser";
+  const description = "A private, local-first cleaner for CSV, TSV and JSON. Standardize global dates, number formats, encodings, whitespace and missing values without uploading your files.";
+  const image = new URL("/og-global.png", base).toString();
   return {
-    metadataBase: base,
-    title,
-    description,
+    metadataBase: base, title, description,
     openGraph: {
-      title,
-      description,
-      type: "website",
-      locale: "zh_TW",
-      images: [{ url: image, width: 1717, height: 916, alt: "DataFix TW — 台灣資料，整理好了。" }],
+      title, description, type: "website", locale: "en_US", alternateLocale: ["zh_TW"],
+      images: [{ url: image, width: 1536, height: 1024, alt: "DataFix — Clean messy data right in your browser." }],
     },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image],
-    },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
   };
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="zh-Hant">
-      <body>{children}</body>
-    </html>
-  );
+  return <html lang="en"><body>{children}</body></html>;
 }
