@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import "./mobile-polish.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -13,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: base, title, description,
     openGraph: {
-      title, description, type: "website", locale: "en_US", alternateLocale: ["zh_TW"],
+      title, description, type: "website", locale: "en_US", alternateLocale: ["zh_TW", "zh_CN"],
       images: [{ url: image, width: 1536, height: 1024, alt: "DataFix — Clean messy data right in your browser." }],
     },
     twitter: { card: "summary_large_image", title, description, images: [image] },
