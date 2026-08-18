@@ -3,7 +3,7 @@
 import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
 
 type Row = string[];
-type Locale = "en" | "zh";
+type Locale = "en" | "zhHant" | "zhHans";
 type DateOrder = "auto" | "dmy" | "mdy";
 type Settings = { trim: boolean; width: boolean; dates: boolean; numbers: boolean; missing: boolean; dateOrder: DateOrder };
 type ChangeKey = "width" | "spaces" | "missing" | "dates" | "numbers" | "headers";
@@ -16,9 +16,9 @@ type Dataset = {
 const messages = {
   en: {
     privacy: "Your data never leaves this browser", github: "Creator on GitHub ↗",
-    eyebrow: "LOCAL-FIRST · WORLD-READY DATA CLEANER",
-    title1: "Clean messy data.", title2: "Right in your browser.",
-    intro: "Fix CSV, TSV and JSON files from any region—without uploading sensitive data. Handle mixed encodings, dates, decimal styles, whitespace and missing values in seconds.",
+    eyebrow: "LOCAL-FIRST · CROSS-FORMAT DATA CLEANER",
+    title1: "Messy data", title2: "cleaned in one click.",
+    intro: "Clean CSV, TSV and JSON files from different regions without uploading sensitive data. Handle multiple encodings, date formats, number formats, whitespace and missing values in one pass.",
     rules: "Cleaning rules", on: "rules on",
     trim: "Trim whitespace", trimHint: "Remove spaces around cell values",
     width: "Normalize character width", widthHint: "Full-width Ａ１２３ → A123",
@@ -42,11 +42,11 @@ const messages = {
     errors: { rows: "The file needs a header row and at least one data row.", limit: "This version supports up to 50,000 data rows.", size: "Please choose a file smaller than 10 MB.", json: "JSON must contain an object or an array of objects.", generic: "This file could not be read." },
     change: { width: "character width", spaces: "whitespace", missing: "missing values", dates: "dates", numbers: "numbers", headers: "headers" },
   },
-  zh: {
+  zhHant: {
     privacy: "資料不會離開你的瀏覽器", github: "作者 GitHub ↗",
-    eyebrow: "本機處理 · 全球格式資料清理工具",
-    title1: "混亂資料，", title2: "在瀏覽器整理好。",
-    intro: "不用上傳敏感資料，就能清理各地的 CSV、TSV 與 JSON。一次處理多種編碼、日期、數字格式、空白與缺失值。",
+    eyebrow: "本機處理 · 跨格式資料清理工具",
+    title1: "雜亂資料", title2: "一鍵整理好。",
+    intro: "不用上傳敏感資料，也能清理各地的 CSV、TSV 與 JSON。一次處理多種編碼、日期、數字格式、空白與缺失值。",
     rules: "清理規則", on: "項已開啟",
     trim: "移除多餘空白", trimHint: "清除儲存格前後空白",
     width: "統一字元寬度", widthHint: "全形 Ａ１２３ → A123",
@@ -62,13 +62,41 @@ const messages = {
     cleaned: "清理後", original: "原始資料", showing: "顯示前", empty: "空值",
     downloadTitle: "清理完成", downloadHint: "匯出 UTF-8 格式，可在現代試算表與資料工具正確開啟。",
     json: "下載 JSON", csv: "下載 UTF-8 CSV ↓",
-    lowerEyebrow: "一個工具 · 處理全球資料", lowerTitle: "專為人們真正交換的資料檔打造。",
+    lowerEyebrow: "一個工具 · 處理各地資料", lowerTitle: "專為日常真正會遇到的資料檔打造。",
     f1: "各地格式，統一輸出", p1: "處理歐美數字格式、國際日期、全形字元與傳統編碼，輸出可攜的標準資料。",
     f2: "每次修改都看得見", p2: "比較原始與清理後內容、確認修改數量，並自行選擇可信任的規則。",
-    f3: "隱私、快速、適合開源", p3: "所有工作都在瀏覽器完成，不必註冊、不必排隊，也不用把敏感試算表交給伺服器。",
+    f3: "隱私、快速、開源", p3: "所有工作都在瀏覽器完成，不必註冊、不必排隊，也不用把敏感試算表交給伺服器。",
     footer: "整理資料，不必交出資料。",
     errors: { rows: "檔案至少需要一列標題與一列資料。", limit: "目前版本最多支援 50,000 列資料。", size: "請選擇小於 10 MB 的檔案。", json: "JSON 必須是物件或物件陣列。", generic: "無法讀取這個檔案。" },
     change: { width: "字元寬度", spaces: "多餘空白", missing: "缺失值", dates: "日期", numbers: "數字", headers: "欄位名稱" },
+  },
+  zhHans: {
+    privacy: "数据不会离开你的浏览器", github: "作者 GitHub ↗",
+    eyebrow: "本地处理 · 跨格式数据清理工具",
+    title1: "杂乱数据", title2: "一键整理好。",
+    intro: "无需上传敏感数据，也能清理各地的 CSV、TSV 与 JSON。一次处理多种编码、日期、数字格式、空白与缺失值。",
+    rules: "清理规则", on: "项已开启",
+    trim: "移除多余空白", trimHint: "清除单元格前后空白",
+    width: "统一字符宽度", widthHint: "全角 Ａ１２３ → A123",
+    dates: "标准化日期", datesHint: "各地日期 → ISO 2024-08-05",
+    numbers: "标准化数字", numbersHint: "1.234,50 或 1,234.50 → 1234.50",
+    missing: "统一缺失值", missingHint: "N/A、NULL、none、破折号 → 空值",
+    dateOrder: "模糊日期顺序", auto: "自动—保留无法判断者", dmy: "日／月／年", mdy: "月／日／年",
+    privateTitle: "隐私优先", privateText: "文件只在你的设备本地处理，不会上传或存储。",
+    drop: "把数据文件拖到这里", dropHint: "CSV、TSV、JSON、TXT · 最大 10 MB／50,000 行",
+    choose: "选择文件", demo: "试用全球示例数据 →", replace: "更换文件",
+    rows: "行", columns: "列", encoding: "文本编码", format: "数据格式", changes: "已修正", status: "数据状态",
+    ready: "可以使用", detected: "自动检测", local: "仅本地处理", noChanges: "数据不需要修改。",
+    cleaned: "清理后", original: "原始数据", showing: "显示前", empty: "空值",
+    downloadTitle: "清理完成", downloadHint: "导出 UTF-8 格式，可在现代电子表格与数据工具中正确打开。",
+    json: "下载 JSON", csv: "下载 UTF-8 CSV ↓",
+    lowerEyebrow: "一个工具 · 处理各地数据", lowerTitle: "专为日常真正会遇到的数据文件打造。",
+    f1: "各地格式，统一输出", p1: "处理欧美数字格式、国际日期、全角字符与传统编码，输出可移植的标准数据。",
+    f2: "每次修改都看得见", p2: "比较原始与清理后的内容、确认修改数量，并自行选择可信任的规则。",
+    f3: "隐私、快速、开源", p3: "所有工作都在浏览器完成，无需注册、无需排队，也不用把敏感表格交给服务器。",
+    footer: "整理数据，不必交出数据。",
+    errors: { rows: "文件至少需要一行标题和一行数据。", limit: "当前版本最多支持 50,000 行数据。", size: "请选择小于 10 MB 的文件。", json: "JSON 必须是对象或对象数组。", generic: "无法读取这个文件。" },
+    change: { width: "字符宽度", spaces: "多余空白", missing: "缺失值", dates: "日期", numbers: "数字", headers: "字段名称" },
   },
 } as const;
 
@@ -125,17 +153,13 @@ function normalizeDate(value: string, order: DateOrder) {
   const [a, b, c] = match.slice(1).map(Number);
   let year: number, month: number, day: number;
 
-  if (explicitRoc) {
-    year = a + 1911; month = b; day = c;
-  } else if (match[1].length === 4 || a >= 300) {
-    year = a; month = b; day = c;
-  } else if (match[1].length === 3 && a >= 1 && a <= 299) {
-    year = a + 1911; month = b; day = c;
-  } else {
+  if (explicitRoc) { year = a + 1911; month = b; day = c; }
+  else if (match[1].length === 4 || a >= 300) { year = a; month = b; day = c; }
+  else if (match[1].length === 3 && a >= 1 && a <= 299) { year = a + 1911; month = b; day = c; }
+  else {
     if (match[3].length === 4) year = c;
     else if (match[3].length === 2) year = c <= 49 ? 2000 + c : 1900 + c;
     else return value;
-
     if (a > 12) { day = a; month = b; }
     else if (b > 12) { month = a; day = b; }
     else if (order === "dmy") { day = a; month = b; }
@@ -152,25 +176,17 @@ function normalizeNumber(value: string) {
   let raw = value.replace(/[\u00A0\u202F ]/g, "").replace(/[’']/g, "");
   const parenthesized = /^\(.+\)$/.test(raw); if (parenthesized) raw = raw.slice(1, -1);
   if (!/^[-+]?\d[\d.,]*$/.test(raw)) return value;
-
   const comma = raw.lastIndexOf(","), dot = raw.lastIndexOf(".");
-  if (comma >= 0 && dot >= 0) {
-    raw = comma > dot ? raw.replaceAll(".", "").replace(",", ".") : raw.replaceAll(",", "");
-  } else {
+  if (comma >= 0 && dot >= 0) raw = comma > dot ? raw.replaceAll(".", "").replace(",", ".") : raw.replaceAll(",", "");
+  else {
     const separator = comma >= 0 ? "," : dot >= 0 ? "." : null;
     if (separator) {
       const parts = raw.split(separator);
-      if (parts.length > 2) {
-        if (!parts.slice(1).every((part) => part.length === 3)) return value;
-        raw = parts.join("");
-      } else if (parts[1]?.length === 3) {
-        return value;
-      } else if (parts[1]?.length === 1 || parts[1]?.length === 2) {
-        raw = `${parts[0]}.${parts[1]}`;
-      }
+      if (parts.length > 2) { if (!parts.slice(1).every((part) => part.length === 3)) return value; raw = parts.join(""); }
+      else if (parts[1]?.length === 3) return value;
+      else if (parts[1]?.length === 1 || parts[1]?.length === 2) raw = `${parts[0]}.${parts[1]}`;
     }
   }
-
   return /^[-+]?\d+(\.\d+)?$/.test(raw) ? (parenthesized ? `-${raw}` : raw) : value;
 }
 
@@ -229,7 +245,6 @@ function decode(buffer: ArrayBuffer) {
       if (name === "windows-1252" && (kana || han)) score += (kana + han) * 8;
       return { text, encoding: label, score };
     }).sort((a, b) => a.score - b.score);
-
     const best = candidates[0], second = candidates[1];
     const confidenceGap = second.score - best.score;
     return { text: best.text, encoding: confidenceGap >= 8 ? best.encoding : `${best.encoding} (uncertain)` };
@@ -299,9 +314,19 @@ export default function Home() {
     <header className="site-header">
       <a className="brand" href="#top"><span className="brand-mark">DF</span><span>Data<b>Fix</b></span></a>
       <div className="privacy-pill"><span>●</span>{t.privacy}</div>
-      <nav className="header-actions"><div className="language-switch"><button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button><button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>繁中</button></div><a className="github-link" href="https://github.com/mickey921205/datafix" target="_blank" rel="noreferrer">{t.github}</a></nav>
+      <nav className="header-actions">
+        <div className="language-switch" aria-label="Language">
+          <button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button>
+          <button className={locale === "zhHant" ? "active" : ""} onClick={() => setLocale("zhHant")}>繁中</button>
+          <button className={locale === "zhHans" ? "active" : ""} onClick={() => setLocale("zhHans")}>简中</button>
+        </div>
+        <a className="github-link" href="https://github.com/mickey921205/datafix" target="_blank" rel="noreferrer">{t.github}</a>
+      </nav>
     </header>
-    <section className="hero" id="top"><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.title1}<br /><em>{t.title2}</em></h1><p className="hero-copy">{t.intro}</p><div className="format-list"><span>CSV</span><span>TSV</span><span>JSON</span><span>UTF-8</span><span>BIG5</span><span>SHIFT-JIS</span><span>WIN-1252</span></div></div><div className="hero-aside" aria-hidden="true"><span>1.234,50</span><strong>→</strong><span>1234.50</span><span>31/12/24</span><strong>→</strong><span>2024-12-31</span><div className="mini-grid"><i /><i /><i /><i /><i /><i /></div></div></section>
+    <section className="hero" id="top">
+      <div><p className="eyebrow">{t.eyebrow}</p><h1><span>{t.title1}</span><em>{t.title2}</em></h1><p className="hero-copy">{t.intro}</p><div className="format-list"><span>CSV</span><span>TSV</span><span>JSON</span><span>UTF-8</span><span>BIG5</span><span>SHIFT-JIS</span><span>WIN-1252</span></div></div>
+      <div className="hero-aside" aria-hidden="true"><span>1.234,50</span><strong>→</strong><span>1234.50</span><span>31/12/24</span><strong>→</strong><span>2024-12-31</span><div className="mini-grid"><i /><i /><i /><i /><i /><i /></div></div>
+    </section>
     <section className="workspace">
       <aside className="settings-panel"><div className="panel-heading"><p>{t.rules}</p><span>{Object.values(settings).filter((v) => v === true).length} {t.on}</span></div>
         <Toggle label={t.trim} hint={t.trimHint} checked={settings.trim} action={() => refresh({ ...settings, trim: !settings.trim })} />
