@@ -89,6 +89,10 @@ Contributions are welcome — especially unusual dirty-data edge cases, reproduc
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
+## Community
+
+DataFix recognizes and links to the [LINUX DO](https://linux.do/) open-source community.
+
 ## Security & responsible samples
 
 If you believe you found a security or privacy issue, please follow [SECURITY.md](SECURITY.md). Do not publish sensitive user data in a public issue.
