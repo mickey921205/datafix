@@ -14,6 +14,7 @@ function sourceBetween(start, end) {
 
 function executableFunction(start, end, name) {
   const source = sourceBetween(start, end)
+    .replaceAll("<string, number>", "")
     .replaceAll(": string[]", "")
     .replaceAll(": Row[]", "")
     .replaceAll(": Row", "")
