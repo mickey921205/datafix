@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1260" viewBox="0 0 900 1260" role="img" aria-labelledby="title desc">
+  <title id="title">DataFix mobile demo</title>
+  <desc id="desc">Mobile view of DataFix showing local-first data cleaning, language selection, supported formats, and before-and-after number and date normalization.</desc>
+  <rect width="900" height="1260" rx="42" fill="#f7f5ef"/>
+  <rect x="34" y="34" width="832" height="1192" rx="34" fill="#fffefa" stroke="#d9ded8" stroke-width="2"/>
+
+  <g transform="translate(72 78)">
+    <rect width="66" height="66" rx="18" fill="#0f7a4c"/>
+    <text x="33" y="43" text-anchor="middle" font-family="Arial,sans-serif" font-size="25" fill="white">DF</text>
+    <text x="90" y="45" font-family="Arial,sans-serif" font-size="37" font-weight="800" fill="#17231d">Data<tspan fill="#0f7a4c">Fix</tspan></text>
+
+    <g transform="translate(520 5)">
+      <rect width="238" height="58" rx="16" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/>
+      <rect x="5" y="5" width="68" height="48" rx="12" fill="#0f7a4c"/>
+      <text x="39" y="38" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="white">EN</text>
+      <text x="111" y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#17231d">繁中</text>
+      <text x="191" y="37" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#17231d">简中</text>
+    </g>
+  </g>
+
+  <line x1="70" y1="170" x2="830" y2="170" stroke="#d9ded8" stroke-width="2"/>
+
+  <g transform="translate(72 238)">
+    <text font-family="ui-monospace,monospace" font-size="21" font-weight="800" letter-spacing="3" fill="#0f7a4c">LOCAL-FIRST · CROSS-FORMAT DATA CLEANER</text>
+    <text y="98" font-family="Arial,sans-serif" font-size="76" font-weight="900" letter-spacing="-4" fill="#17231d">Messy data</text>
+    <text y="174" font-family="Arial,sans-serif" font-size="68" font-weight="900" letter-spacing="-4" fill="#0f7a4c">cleaned in one click.</text>
+    <text y="238" font-family="Arial,sans-serif" font-size="24" font-weight="500" fill="#667169">Clean CSV, TSV and JSON files from different regions</text>
+    <text y="278" font-family="Arial,sans-serif" font-size="24" font-weight="500" fill="#667169">without uploading sensitive data. Handle multiple encodings,</text>
+    <text y="318" font-family="Arial,sans-serif" font-size="24" font-weight="500" fill="#667169">date formats, number formats, whitespace and missing values.</text>
+
+    <g transform="translate(0 360)" font-family="ui-monospace,monospace" font-size="17" font-weight="750" fill="#59655d">
+      <g><rect width="82" height="48" rx="10" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/><text x="41" y="31" text-anchor="middle">CSV</text></g>
+      <g transform="translate(94)"><rect width="82" height="48" rx="10" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/><text x="41" y="31" text-anchor="middle">TSV</text></g>
+      <g transform="translate(188)"><rect width="94" height="48" rx="10" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/><text x="47" y="31" text-anchor="middle">JSON</text></g>
+      <g transform="translate(294)"><rect width="110" height="48" rx="10" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/><text x="55" y="31" text-anchor="middle">UTF-8</text></g>
+      <g transform="translate(416)"><rect width="102" height="48" rx="10" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/><text x="51" y="31" text-anchor="middle">BIG5</text></g>
+      <g transform="translate(530)"><rect width="150" height="48" rx="10" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/><text x="75" y="31" text-anchor="middle">SHIFT-JIS</text></g>
+      <g transform="translate(0 60)"><rect width="136" height="48" rx="10" fill="#fffefa" stroke="#c7cec8" stroke-width="2"/><text x="68" y="31" text-anchor="middle">WIN-1252</text></g>
+    </g>
+  </g>
+
+  <g transform="translate(72 775)">
+    <rect width="756" height="360" rx="34" fill="#edf5ee" stroke="#b9c6bc" stroke-width="2"/>
+    <rect x="22" y="22" width="332" height="120" rx="22" fill="white" stroke="#cad5cc" stroke-width="2"/>
+    <rect x="402" y="22" width="332" height="120" rx="22" fill="white" stroke="#cad5cc" stroke-width="2"/>
+    <rect x="22" y="162" width="332" height="120" rx="22" fill="white" stroke="#cad5cc" stroke-width="2"/>
+    <rect x="402" y="162" width="332" height="120" rx="22" fill="white" stroke="#cad5cc" stroke-width="2"/>
+    <text x="188" y="94" text-anchor="middle" font-family="ui-monospace,monospace" font-size="33" font-weight="800" fill="#17231d">1.234,50</text>
+    <text x="568" y="94" text-anchor="middle" font-family="ui-monospace,monospace" font-size="33" font-weight="800" fill="#17231d">1234.50</text>
+    <text x="188" y="234" text-anchor="middle" font-family="ui-monospace,monospace" font-size="33" font-weight="800" fill="#17231d">31/12/24</text>
+    <text x="568" y="234" text-anchor="middle" font-family="ui-monospace,monospace" font-size="33" font-weight="800" fill="#17231d">2024-12-31</text>
+    <text x="378" y="94" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="800" fill="#0f7a4c">→</text>
+    <text x="378" y="234" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="800" fill="#0f7a4c">→</text>
+    <g transform="translate(22 316)">
+      <rect width="110" height="13" rx="6" fill="#a8d8ba"/><rect x="124" width="110" height="13" rx="6" fill="#a8d8ba"/>
+      <rect x="248" width="110" height="13" rx="6" fill="#d9f45e"/><rect x="372" width="110" height="13" rx="6" fill="#a8d8ba"/>
+      <rect x="496" width="110" height="13" rx="6" fill="#a8d8ba"/><rect x="620" width="114" height="13" rx="6" fill="#d9f45e"/>
+    </g>
+  </g>
+
+  <text x="450" y="1190" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" fill="#667169">datafix-tw.mickey921205.workers.dev</text>
+</svg>

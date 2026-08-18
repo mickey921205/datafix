@@ -4,6 +4,10 @@
 
 [**Try DataFix online →**](https://datafix-tw.mickey921205.workers.dev)
 
+<p align="center">
+  <img src="docs/datafix-mobile-showcase.svg" alt="DataFix mobile demo showing local-first CSV, TSV and JSON cleaning with number and date normalization" width="620" />
+</p>
+
 DataFix helps clean tabular data from different regions without uploading the source file to a server. It focuses on the annoying problems that appear when data crosses systems, locales and encodings: Big5, Shift-JIS, inconsistent dates, decimal separators, full-width characters, missing values and broken column names.
 
 > Your data stays on your device. Parsing, cleaning, previewing and exporting happen locally in the browser.
@@ -21,8 +25,6 @@ Real-world data is rarely clean. A single dataset may contain:
 
 DataFix aims to make these files usable with a quick local workflow instead of requiring a script or uploading sensitive data to an online converter.
 
-Want a safe file to try? Use the synthetic [`examples/global-messy-data.csv`](examples/global-messy-data.csv) fixture.
-
 ## Features
 
 - Detect UTF-8, Big5, Shift-JIS and Windows-1252 text
@@ -34,7 +36,7 @@ Want a safe file to try? Use the synthetic [`examples/global-messy-data.csv`](ex
 - Infer text, number, date and email columns
 - Compare original and cleaned data with highlighted changes
 - Export UTF-8 CSV or JSON
-- English and Traditional Chinese interface
+- English, Traditional Chinese and Simplified Chinese interface
 
 ## Privacy
 
@@ -71,6 +73,10 @@ Deploy to Cloudflare Workers after authenticating Wrangler:
 ```bash
 npm run deploy
 ```
+
+## Try a safe sample
+
+Use the synthetic dirty-data fixture at [`examples/global-messy-data.csv`](examples/global-messy-data.csv) to try date, number, whitespace, missing-value and header cleanup without sharing real data.
 
 ## Roadmap
 
