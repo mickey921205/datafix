@@ -21,6 +21,8 @@ Real-world data is rarely clean. A single dataset may contain:
 
 DataFix aims to make these files usable with a quick local workflow instead of requiring a script or uploading sensitive data to an online converter.
 
+Want a safe file to try? Use the synthetic [`examples/global-messy-data.csv`](examples/global-messy-data.csv) fixture.
+
 ## Features
 
 - Detect UTF-8, Big5, Shift-JIS and Windows-1252 text
