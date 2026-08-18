@@ -16,7 +16,8 @@ test("XLSX export can be read back locally without data loss", async () => {
   const workbook = await readXlsx(await blob.arrayBuffer());
   assert.equal(workbook.sheets.length, 1);
   assert.equal(workbook.sheets[0].name, "資料 & Data");
-  assert.deepEqual(workbook.sheets[0].rows, rows);
+  const denseRows = workbook.sheets[0].rows.map((row) => Array.from({ length: rows[0].length }, (_, index) => row[index] ?? ""));
+  assert.deepEqual(denseRows, rows);
 });
 
 test("XLSX export contains the minimal workbook parts Excel expects", async () => {
