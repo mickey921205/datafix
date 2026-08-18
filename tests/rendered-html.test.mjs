@@ -21,9 +21,11 @@ test("server-renders the global DataFix product shell", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /DataFix/);
-  assert.match(html, /Clean messy data/);
+  assert.match(html, /Messy data/);
+  assert.match(html, /cleaned in one click/);
   assert.match(html, /Drop a data file here/);
   assert.match(html, /Your data never leaves this browser/);
+  assert.match(html, /简中/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
@@ -33,7 +35,10 @@ test("removes starter-only assets and metadata", async () => {
     readFile(new URL("app/layout.tsx", root), "utf8"),
     readFile(new URL("package.json", root), "utf8"),
   ]);
-  assert.match(page, /WORLD-READY DATA CLEANER/);
+  assert.match(page, /CROSS-FORMAT DATA CLEANER/);
+  assert.match(page, /雜亂資料/);
+  assert.match(page, /杂乱数据/);
+  assert.match(layout, /zh_CN/);
   assert.match(layout, /summary_large_image/);
   assert.doesNotMatch(layout, /Starter Project|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
