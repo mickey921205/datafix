@@ -1,8 +1,23 @@
 # DataFix
 
-DataFix is a privacy-first, local browser tool for cleaning CSV, TSV and JSON files from different regions. Files never leave the user's device.
+**Privacy-first data cleaning for messy CSV, TSV and JSON files — entirely in your browser.**
 
-The interface is available in English and Traditional Chinese.
+DataFix helps clean tabular data from different regions without uploading the source file to a server. It focuses on the annoying problems that appear when data crosses systems, locales and encodings: Big5, Shift-JIS, inconsistent dates, decimal separators, full-width characters, missing values and broken column names.
+
+> Your data stays on your device. Parsing, cleaning, previewing and exporting happen locally in the browser.
+
+## Why DataFix?
+
+Real-world data is rarely clean. A single dataset may contain:
+
+- UTF-8, Big5, Shift-JIS or Windows-1252 text
+- `1,234.56` and `1.234,56` numeric formats
+- different date conventions such as `2026/08/18`, `18/08/2026` and `08/18/2026`
+- full-width characters copied from East Asian systems
+- blank, duplicated or malformed column names
+- inconsistent missing-value markers and whitespace
+
+DataFix aims to make these files usable with a quick local workflow instead of requiring a script or uploading sensitive data to an online converter.
 
 ## Features
 
@@ -15,16 +30,21 @@ The interface is available in English and Traditional Chinese.
 - Infer text, number, date and email columns
 - Compare original and cleaned data with highlighted changes
 - Export UTF-8 CSV or JSON
+- English and Traditional Chinese interface
 
 ## Privacy
 
-Parsing, cleaning and exporting happen entirely in the browser. DataFix has no file-upload API and does not store or transmit file contents.
+DataFix is local-first. File contents are parsed, cleaned and exported in the browser. The project does not provide a file-upload API and is designed so source data does not need to leave the user's device.
 
-## Development
+When reporting bugs, **never upload real personal, confidential or credential-bearing data**. Please create a small synthetic sample that reproduces the problem.
+
+## Quick start
 
 Requires Node.js 22.13 or newer.
 
 ```bash
+git clone https://github.com/mickey921205/datafix.git
+cd datafix
 npm install
 npm run dev
 ```
@@ -35,19 +55,36 @@ Production build:
 npm run build
 ```
 
+Run the project checks:
+
+```bash
+npm test
+npm run lint
+```
+
 ## Roadmap
 
+The public roadmap is tracked in GitHub Issues. Current priorities include:
+
 - Local Excel `.xlsx` import and export
-- Editable column rules
+- Editable per-column cleaning rules
 - Duplicate detection and merge suggestions
 - Reusable cleaning profiles
 - CLI and npm library
 - More real-world fixtures from different regions
 
+If one of these matters to you, feedback and implementation ideas are welcome in the corresponding issue.
+
 ## Contributing
 
-Bug reports, unusual dirty-data samples, feature ideas and pull requests are welcome. Never include personal data, credentials or other sensitive source data in an issue.
+Contributions are welcome — especially unusual dirty-data edge cases, reproducible bug reports, tests, documentation improvements and focused pull requests.
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## Security & responsible samples
+
+If you believe you found a security or privacy issue, please follow [SECURITY.md](SECURITY.md). Do not publish sensitive user data in a public issue.
 
 ## License
 
-MIT
+[MIT](LICENSE)
