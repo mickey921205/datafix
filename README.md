@@ -2,6 +2,8 @@
 
 **Privacy-first data cleaning for messy CSV, TSV and JSON files — entirely in your browser.**
 
+[**Try DataFix online →**](https://datafix-tw.mickey921205.workers.dev)
+
 DataFix helps clean tabular data from different regions without uploading the source file to a server. It focuses on the annoying problems that appear when data crosses systems, locales and encodings: Big5, Shift-JIS, inconsistent dates, decimal separators, full-width characters, missing values and broken column names.
 
 > Your data stays on your device. Parsing, cleaning, previewing and exporting happen locally in the browser.
@@ -60,6 +62,12 @@ Run the project checks:
 ```bash
 npm test
 npm run lint
+```
+
+Deploy to Cloudflare Workers after authenticating Wrangler:
+
+```bash
+npm run deploy
 ```
 
 ## Roadmap
