@@ -1,0 +1,7 @@
+ name ,city,date,amount,email,status,status
+ "Alice" ,London,31/12/2024,"1,234.50",alice@example.com, active,
+Bob,Berlin,31.12.2024,"1.234,50",bob@example.de,N/A,
+山田,Tokyo,2024/12/31,"１２３４５０",yamada@example.jp,active,
+小明,Taipei,民國113/08/05,"1,280,500",ming@example.tw,NULL,
+Ana,São Paulo,31-12-2024,"1 234,50",ana@example.br, active ,
+Eva,Paris,01/02/24,"1.234",eva@example.fr,none,
