@@ -12,22 +12,48 @@ function sourceBetween(start, end) {
   return page.slice(from, to);
 }
 
-test("date normalization uses Gregorian pivot for two-digit trailing years", () => {
-  const source = sourceBetween("function normalizeDate", "function normalizeNumber");
-  assert.match(source, /c <= 49 \? 2000 \+ c : 1900 \+ c/);
-  assert.match(source, /explicitRoc/);
-  assert.match(source, /match\[1\]\.length === 3/);
-  assert.doesNotMatch(source, /year = c < 300 \? c \+ 1911 : c/);
+function executableFunction(start, end, name) {
+  const source = sourceBetween(start, end)
+    .replaceAll(": string", "")
+    .replaceAll(": number", "")
+    .replaceAll(": DateOrder", "");
+  return new Function(`${source}; return ${name};`)();
+}
+
+const normalizeDate = executableFunction("function normalizeDate", "function normalizeNumber", "normalizeDate");
+const normalizeNumber = executableFunction("function normalizeNumber", "function cleanCell", "normalizeNumber");
+
+test("normalizes two-digit Gregorian years without confusing them with ROC years", () => {
+  assert.equal(normalizeDate("31/12/24", "auto"), "2024-12-31");
+  assert.equal(normalizeDate("12/31/24", "auto"), "2024-12-31");
+  assert.equal(normalizeDate("01/02/24", "auto"), "01/02/24");
+  assert.equal(normalizeDate("01/02/24", "dmy"), "2024-02-01");
+  assert.equal(normalizeDate("01/02/24", "mdy"), "2024-01-02");
 });
 
-test("ambiguous single-separator three-digit numbers are preserved", () => {
-  const source = sourceBetween("function normalizeNumber", "function cleanCell");
-  assert.match(source, /parts\[1\]\?\.length === 3/);
-  assert.match(source, /return value/);
-  assert.match(source, /parts\.slice\(1\)\.every\(\(part\) => part\.length === 3\)/);
+test("keeps explicit and year-first ROC date support", () => {
+  assert.equal(normalizeDate("113/08/05", "auto"), "2024-08-05");
+  assert.equal(normalizeDate("民國113/08/05", "auto"), "2024-08-05");
+  assert.equal(normalizeDate("2024/12/31", "auto"), "2024-12-31");
+  assert.equal(normalizeDate("2024/02/30", "auto"), "2024/02/30");
 });
 
-test("legacy encoding detection exposes low confidence", () => {
+test("preserves ambiguous single-separator three-digit numbers", () => {
+  assert.equal(normalizeNumber("1,234"), "1,234");
+  assert.equal(normalizeNumber("1.234"), "1.234");
+  assert.equal(normalizeNumber("(1,234)"), "(1,234)");
+});
+
+test("normalizes unambiguous US, European and grouped numeric formats", () => {
+  assert.equal(normalizeNumber("1,234.56"), "1234.56");
+  assert.equal(normalizeNumber("1.234,56"), "1234.56");
+  assert.equal(normalizeNumber("1,234,567"), "1234567");
+  assert.equal(normalizeNumber("1.234.567"), "1234567");
+  assert.equal(normalizeNumber("1,23"), "1.23");
+  assert.equal(normalizeNumber("(1,234.56)"), "-1234.56");
+});
+
+test("legacy encoding detection exposes low confidence instead of claiming certainty", () => {
   const source = sourceBetween("function decode", "function infer");
   assert.match(source, /confidenceGap/);
   assert.match(source, /\(uncertain\)/);
