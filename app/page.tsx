@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
+import { readXlsx, writeXlsx } from "../lib/xlsx.js";
 
 type Row = string[];
 type Locale = "en" | "zhHant" | "zhHans";
@@ -13,12 +14,14 @@ type Dataset = {
   changes: Partial<Record<ChangeKey, number>>;
 };
 
+type XlsxSheet = { name: string; rows: Row[] };
+
 const messages = {
   en: {
     privacy: "Your data never leaves this browser", github: "Creator on GitHub ↗",
     eyebrow: "LOCAL-FIRST · CROSS-FORMAT DATA CLEANER",
     title1: "Messy data", title2: "cleaned in one click.",
-    intro: "Clean CSV, TSV and JSON files from different regions without uploading sensitive data. Handle multiple encodings, date formats, number formats, whitespace and missing values in one pass.",
+    intro: "Clean XLSX, CSV, TSV and JSON files from different regions without uploading sensitive data. Handle multiple encodings, date formats, number formats, whitespace and missing values in one pass.",
     rules: "Cleaning rules", on: "rules on",
     trim: "Trim whitespace", trimHint: "Remove spaces around cell values",
     width: "Normalize character width", widthHint: "Full-width Ａ１２３ → A123",
@@ -27,13 +30,13 @@ const messages = {
     missing: "Unify missing values", missingHint: "N/A, NULL, none and dashes → empty",
     dateOrder: "Ambiguous date order", auto: "Auto — keep ambiguous", dmy: "Day / month / year", mdy: "Month / day / year",
     privateTitle: "Private by design", privateText: "Files are processed locally on your device. Nothing is uploaded or stored.",
-    drop: "Drop a data file here", dropHint: "CSV, TSV, JSON or TXT · up to 10 MB / 50,000 rows",
+    drop: "Drop a data file here", dropHint: "XLSX, CSV, TSV, JSON or TXT · up to 10 MB / 50,000 rows",
     choose: "Choose a file", demo: "Try global demo data →", replace: "Replace file",
     rows: "rows", columns: "columns", encoding: "Encoding", format: "Format", changes: "Cells fixed", status: "Status",
     ready: "Ready", detected: "Detected", local: "Local only", noChanges: "No changes were needed.",
     cleaned: "Cleaned", original: "Original", showing: "Showing first", empty: "empty",
-    downloadTitle: "Ready to use", downloadHint: "Export clean UTF-8 files that open correctly across modern tools.",
-    json: "Download JSON", csv: "Download UTF-8 CSV ↓",
+    downloadTitle: "Ready to use", downloadHint: "Export clean UTF-8 files or a clean XLSX workbook.",
+    json: "Download JSON", csv: "Download UTF-8 CSV ↓", xlsx: "Download XLSX", sheet: "Worksheet",
     lowerEyebrow: "ONE TOOL · MANY REGIONS", lowerTitle: "Built for the files people actually exchange.",
     f1: "Regional formats, one clean output", p1: "Convert European and US number styles, international dates, full-width characters and legacy encodings into portable data.",
     f2: "Review every transformation", p2: "Compare original and cleaned values, see exactly what changed, and choose only the rules you trust.",
@@ -46,7 +49,7 @@ const messages = {
     privacy: "資料不會離開你的瀏覽器", github: "作者 GitHub ↗",
     eyebrow: "本機處理 · 跨格式資料清理工具",
     title1: "雜亂資料", title2: "一鍵整理好。",
-    intro: "不用上傳敏感資料，也能清理各地的 CSV、TSV 與 JSON。一次處理多種編碼、日期、數字格式、空白與缺失值。",
+    intro: "不用上傳敏感資料，也能清理各地的 XLSX、CSV、TSV 與 JSON。一次處理多種編碼、日期、數字格式、空白與缺失值。",
     rules: "清理規則", on: "項已開啟",
     trim: "移除多餘空白", trimHint: "清除儲存格前後空白",
     width: "統一字元寬度", widthHint: "全形 Ａ１２３ → A123",
@@ -55,13 +58,13 @@ const messages = {
     missing: "統一缺失值", missingHint: "N/A、NULL、none、破折號 → 空值",
     dateOrder: "模糊日期順序", auto: "自動—保留無法判斷者", dmy: "日／月／年", mdy: "月／日／年",
     privateTitle: "隱私優先", privateText: "檔案只在你的裝置本機處理，不會上傳或儲存。",
-    drop: "把資料檔拖到這裡", dropHint: "CSV、TSV、JSON、TXT · 最大 10 MB／50,000 列",
+    drop: "把資料檔拖到這裡", dropHint: "XLSX、CSV、TSV、JSON、TXT · 最大 10 MB／50,000 列",
     choose: "選擇檔案", demo: "試用全球範例資料 →", replace: "更換檔案",
     rows: "列", columns: "欄", encoding: "文字編碼", format: "資料格式", changes: "已修正", status: "資料狀態",
     ready: "可以使用", detected: "自動偵測", local: "僅本機處理", noChanges: "資料不需要修改。",
     cleaned: "清理後", original: "原始資料", showing: "顯示前", empty: "空值",
-    downloadTitle: "清理完成", downloadHint: "匯出 UTF-8 格式，可在現代試算表與資料工具正確開啟。",
-    json: "下載 JSON", csv: "下載 UTF-8 CSV ↓",
+    downloadTitle: "清理完成", downloadHint: "可匯出 UTF-8 格式或乾淨的 XLSX 活頁簿。",
+    json: "下載 JSON", csv: "下載 UTF-8 CSV ↓", xlsx: "下載 XLSX", sheet: "工作表",
     lowerEyebrow: "一個工具 · 處理各地資料", lowerTitle: "專為日常真正會遇到的資料檔打造。",
     f1: "各地格式，統一輸出", p1: "處理歐美數字格式、國際日期、全形字元與傳統編碼，輸出可攜的標準資料。",
     f2: "每次修改都看得見", p2: "比較原始與清理後內容、確認修改數量，並自行選擇可信任的規則。",
@@ -74,7 +77,7 @@ const messages = {
     privacy: "数据不会离开你的浏览器", github: "作者 GitHub ↗",
     eyebrow: "本地处理 · 跨格式数据清理工具",
     title1: "杂乱数据", title2: "一键整理好。",
-    intro: "无需上传敏感数据，也能清理各地的 CSV、TSV 与 JSON。一次处理多种编码、日期、数字格式、空白与缺失值。",
+    intro: "无需上传敏感数据，也能清理各地的 XLSX、CSV、TSV 与 JSON。一次处理多种编码、日期、数字格式、空白与缺失值。",
     rules: "清理规则", on: "项已开启",
     trim: "移除多余空白", trimHint: "清除单元格前后空白",
     width: "统一字符宽度", widthHint: "全角 Ａ１２３ → A123",
@@ -83,13 +86,13 @@ const messages = {
     missing: "统一缺失值", missingHint: "N/A、NULL、none、破折号 → 空值",
     dateOrder: "模糊日期顺序", auto: "自动—保留无法判断者", dmy: "日／月／年", mdy: "月／日／年",
     privateTitle: "隐私优先", privateText: "文件只在你的设备本地处理，不会上传或存储。",
-    drop: "把数据文件拖到这里", dropHint: "CSV、TSV、JSON、TXT · 最大 10 MB／50,000 行",
+    drop: "把数据文件拖到这里", dropHint: "XLSX、CSV、TSV、JSON、TXT · 最大 10 MB／50,000 行",
     choose: "选择文件", demo: "试用全球示例数据 →", replace: "更换文件",
     rows: "行", columns: "列", encoding: "文本编码", format: "数据格式", changes: "已修正", status: "数据状态",
     ready: "可以使用", detected: "自动检测", local: "仅本地处理", noChanges: "数据不需要修改。",
     cleaned: "清理后", original: "原始数据", showing: "显示前", empty: "空值",
-    downloadTitle: "清理完成", downloadHint: "导出 UTF-8 格式，可在现代电子表格与数据工具中正确打开。",
-    json: "下载 JSON", csv: "下载 UTF-8 CSV ↓",
+    downloadTitle: "清理完成", downloadHint: "可导出 UTF-8 格式或干净的 XLSX 工作簿。",
+    json: "下载 JSON", csv: "下载 UTF-8 CSV ↓", xlsx: "下载 XLSX", sheet: "工作表",
     lowerEyebrow: "一个工具 · 处理各地数据", lowerTitle: "专为日常真正会遇到的数据文件打造。",
     f1: "各地格式，统一输出", p1: "处理欧美数字格式、国际日期、全角字符与传统编码，输出可移植的标准数据。",
     f2: "每次修改都看得见", p2: "比较原始与清理后的内容、确认修改数量，并自行选择可信任的规则。",
@@ -101,7 +104,7 @@ const messages = {
 } as const;
 
 const defaults: Settings = { trim: true, width: true, dates: true, numbers: true, missing: true, dateOrder: "auto" };
-const delimiterNames: Record<string, string> = { ",": "Comma CSV", "\t": "Tab TSV", ";": "Semicolon", "|": "Pipe", json: "JSON" };
+const delimiterNames: Record<string, string> = { ",": "Comma CSV", "\t": "Tab TSV", ";": "Semicolon", "|": "Pipe", json: "JSON", xlsx: "Excel XLSX" };
 const demo = `name,city,date,amount,email,status
  "Alice" ,London,31/12/2024,"1,234.50",alice@example.com, active
 Bob,Berlin,31.12.2024,"1.234,50",bob@example.de,N/A
@@ -275,6 +278,7 @@ export default function Home() {
   const [settings, setSettings] = useState(defaults);
   const [dataset, setDataset] = useState<Dataset | null>(null); const [rawRows, setRawRows] = useState<Row[] | null>(null);
   const [source, setSource] = useState({ fileName: "", encoding: "", delimiter: "," });
+  const [xlsxSheets, setXlsxSheets] = useState<XlsxSheet[]>([]); const [activeSheet, setActiveSheet] = useState("");
   const [view, setView] = useState<"clean" | "original">("clean"); const [dragging, setDragging] = useState(false); const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const types = useMemo(() => dataset ? dataset.headers.map((_, i) => infer(dataset.rows.map((row) => row[i] ?? ""))) : [], [dataset]);
@@ -288,14 +292,25 @@ export default function Home() {
   async function processFile(file: File) {
     try {
       if (file.size > 10 * 1024 * 1024) throw new Error(t.errors.size);
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.endsWith(".xlsx")) {
+        const workbook = await readXlsx(await file.arrayBuffer()) as { sheets: XlsxSheet[] };
+        setXlsxSheets(workbook.sheets); setActiveSheet(workbook.sheets[0].name);
+        loadRows(workbook.sheets[0].rows, file.name, "XLSX", "xlsx"); return;
+      }
+      setXlsxSheets([]); setActiveSheet("");
       const decoded = decode(await file.arrayBuffer()); const text = decoded.text.replace(/^\uFEFF/, "");
-      if (file.name.toLowerCase().endsWith(".json")) {
+      if (lowerName.endsWith(".json")) {
         const parsed = JSON.parse(text) as unknown; const records = Array.isArray(parsed) ? parsed : [parsed];
         if (!records.every((r) => r && typeof r === "object" && !Array.isArray(r))) throw new Error(t.errors.json);
         const headers = Array.from(new Set(records.flatMap((r) => Object.keys(r as Record<string, unknown>))));
         loadRows([headers, ...records.map((r) => headers.map((h) => { const v = (r as Record<string, unknown>)[h]; return v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); }))], file.name, decoded.encoding, "json");
       } else { const delimiter = detectDelimiter(text); loadRows(parseDelimited(text, delimiter), file.name, decoded.encoding, delimiter); }
     } catch (e) { setError(e instanceof Error ? e.message : t.errors.generic); }
+  }
+  function switchSheet(name: string) {
+    const sheet = xlsxSheets.find((item) => item.name === name); if (!sheet) return;
+    setActiveSheet(name); loadRows(sheet.rows, source.fileName || dataset?.fileName || "workbook.xlsx", "XLSX", "xlsx");
   }
   function fileChanged(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (file) void processFile(file); event.target.value = ""; }
   function dropped(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files?.[0]; if (file) void processFile(file); }
@@ -306,6 +321,10 @@ export default function Home() {
   function json() {
     if (!dataset) return; const rows = dataset.rows.map((row) => Object.fromEntries(dataset.headers.map((h, i) => [h, row[i] ?? ""])));
     download(JSON.stringify(rows, null, 2), "application/json", `${dataset.fileName.replace(/\.[^.]+$/, "")}_clean.json`);
+  }
+  function xlsx() {
+    if (!dataset) return; const blob = writeXlsx([dataset.headers, ...dataset.rows], activeSheet || "Cleaned");
+    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${dataset.fileName.replace(/\.[^.]+$/, "")}_clean.xlsx`; a.click(); URL.revokeObjectURL(url);
   }
   const headers = dataset ? (view === "clean" ? dataset.headers : dataset.originalHeaders) : [];
   const rows = dataset ? (view === "clean" ? dataset.rows : dataset.originalRows) : [];
@@ -324,7 +343,7 @@ export default function Home() {
       </nav>
     </header>
     <section className="hero" id="top">
-      <div><p className="eyebrow">{t.eyebrow}</p><h1><span>{t.title1}</span><em>{t.title2}</em></h1><p className="hero-copy">{t.intro}</p><div className="format-list"><span>CSV</span><span>TSV</span><span>JSON</span><span>UTF-8</span><span>BIG5</span><span>SHIFT-JIS</span><span>WIN-1252</span></div></div>
+      <div><p className="eyebrow">{t.eyebrow}</p><h1><span>{t.title1}</span><em>{t.title2}</em></h1><p className="hero-copy">{t.intro}</p><div className="format-list"><span>XLSX</span><span>CSV</span><span>TSV</span><span>JSON</span><span>UTF-8</span><span>BIG5</span><span>SHIFT-JIS</span><span>WIN-1252</span></div></div>
       <div className="hero-aside" aria-hidden="true"><span>1.234,50</span><strong>→</strong><span>1234.50</span><span>31/12/24</span><strong>→</strong><span>2024-12-31</span><div className="mini-grid"><i /><i /><i /><i /><i /><i /></div></div>
     </section>
     <section className="workspace">
@@ -339,15 +358,16 @@ export default function Home() {
       </aside>
       <div className="main-panel">{!dataset ?
         <div className={`dropzone ${dragging ? "dragging" : ""}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={dropped}>
-          <input ref={fileInput} type="file" accept=".csv,.tsv,.json,.txt" onChange={fileChanged} /><div className="drop-icon">+</div><h2>{t.drop}</h2><p>{t.dropHint}</p><div className="drop-actions"><button className="primary-button" onClick={() => fileInput.current?.click()}>{t.choose}</button><button className="text-button" onClick={() => loadRows(parseDelimited(demo, ","), "global_messy_data.csv", "UTF-8", ",")}>{t.demo}</button></div>{error && <p className="error-message" role="alert">{error}</p>}
+          <input ref={fileInput} type="file" accept=".xlsx,.csv,.tsv,.json,.txt" onChange={fileChanged} /><div className="drop-icon">+</div><h2>{t.drop}</h2><p>{t.dropHint}</p><div className="drop-actions"><button className="primary-button" onClick={() => fileInput.current?.click()}>{t.choose}</button><button className="text-button" onClick={() => loadRows(parseDelimited(demo, ","), "global_messy_data.csv", "UTF-8", ",")}>{t.demo}</button></div>{error && <p className="error-message" role="alert">{error}</p>}
         </div> :
         <div className="results">
-          <div className="results-topbar"><div className="file-title"><span className="file-icon">▦</span><div><strong>{dataset.fileName}</strong><small>{dataset.rows.length.toLocaleString()} {t.rows} · {dataset.headers.length} {t.columns}</small></div></div><button className="replace-button" onClick={() => fileInput.current?.click()}>{t.replace}</button><input ref={fileInput} className="hidden-input" type="file" accept=".csv,.tsv,.json,.txt" onChange={fileChanged} /></div>
+          <div className="results-topbar"><div className="file-title"><span className="file-icon">▦</span><div><strong>{dataset.fileName}</strong><small>{dataset.rows.length.toLocaleString()} {t.rows} · {dataset.headers.length} {t.columns}</small></div></div><button className="replace-button" onClick={() => fileInput.current?.click()}>{t.replace}</button><input ref={fileInput} className="hidden-input" type="file" accept=".xlsx,.csv,.tsv,.json,.txt" onChange={fileChanged} /></div>
+          {xlsxSheets.length > 1 && <label className="sheet-picker"><span>{t.sheet}</span><select value={activeSheet} onChange={(e) => switchSheet(e.target.value)}>{xlsxSheets.map((sheet) => <option key={sheet.name} value={sheet.name}>{sheet.name}</option>)}</select></label>}
           <div className="summary-grid"><article><small>{t.encoding}</small><strong>{dataset.encoding}</strong><span className="status-dot">{t.detected}</span></article><article><small>{t.format}</small><strong>{delimiterNames[dataset.delimiter] ?? "Delimited"}</strong><span>{t.detected}</span></article><article><small>{t.changes}</small><strong>{total.toLocaleString()} <i>cells</i></strong><span>{t.local}</span></article><article><small>{t.status}</small><strong className="ready">{t.ready}</strong><span>✓</span></article></div>
           <div className="change-strip">{Object.entries(dataset.changes).length ? Object.entries(dataset.changes).map(([name, count]) => <span key={name}><b>{count}</b> {t.change[name as ChangeKey]}</span>) : <span>{t.noChanges}</span>}</div>
           <div className="table-toolbar"><div><button className={view === "clean" ? "active" : ""} onClick={() => setView("clean")}>{t.cleaned}</button><button className={view === "original" ? "active" : ""} onClick={() => setView("original")}>{t.original}</button></div><small>{t.showing} {Math.min(rows.length, 20)}</small></div>
           <div className="table-wrap"><table><thead><tr><th>#</th>{headers.map((h, i) => <th key={`${h}-${i}`}><span>{h || "(unnamed)"}</span><small>{types[i]}</small></th>)}</tr></thead><tbody>{rows.slice(0, 20).map((row, ri) => <tr key={ri}><td>{ri + 1}</td>{headers.map((_, ci) => { const value = row[ci] ?? ""; const changed = dataset.originalRows[ri]?.[ci] !== dataset.rows[ri]?.[ci]; return <td key={ci} className={view === "clean" && changed ? "changed" : ""}>{value || <span className="empty">{t.empty}</span>}</td>; })}</tr>)}</tbody></table></div>
-          <div className="download-bar"><div><strong>{t.downloadTitle}</strong><p>{t.downloadHint}</p></div><button className="secondary-button" onClick={json}>{t.json}</button><button className="primary-button" onClick={csv}>{t.csv}</button></div>
+          <div className="download-bar"><div><strong>{t.downloadTitle}</strong><p>{t.downloadHint}</p></div><button className="secondary-button" onClick={json}>{t.json}</button>{source.delimiter === "xlsx" && <button className="secondary-button" onClick={xlsx}>{t.xlsx}</button>}<button className="primary-button" onClick={csv}>{t.csv}</button></div>
         </div>}
       </div>
     </section>
