@@ -117,18 +117,32 @@ function parseDelimited(text: string, delimiter: string): Row[] {
 }
 
 function normalizeDate(value: string, order: DateOrder) {
-  const match = value.replace(/^民國/, "").replace(/[年月.]/g, "/").replace(/日$/, "").match(/^(\d{1,4})[\/-](\d{1,2})[\/-](\d{1,4})$/);
+  const explicitRoc = /^民國/.test(value);
+  const normalized = value.replace(/^民國/, "").replace(/[年月.]/g, "/").replace(/日$/, "");
+  const match = normalized.match(/^(\d{1,4})[\/-](\d{1,2})[\/-](\d{1,4})$/);
   if (!match) return value;
-  const [a, b, c] = match.slice(1).map(Number); let year: number, month: number, day: number;
-  if (match[1].length >= 3 || a > 31) { year = a < 300 ? a + 1911 : a; month = b; day = c; }
-  else {
-    year = c < 300 ? c + 1911 : c;
+
+  const [a, b, c] = match.slice(1).map(Number);
+  let year: number, month: number, day: number;
+
+  if (explicitRoc) {
+    year = a + 1911; month = b; day = c;
+  } else if (match[1].length === 4 || a >= 300) {
+    year = a; month = b; day = c;
+  } else if (match[1].length === 3 && a >= 1 && a <= 299) {
+    year = a + 1911; month = b; day = c;
+  } else {
+    if (match[3].length === 4) year = c;
+    else if (match[3].length === 2) year = c <= 49 ? 2000 + c : 1900 + c;
+    else return value;
+
     if (a > 12) { day = a; month = b; }
     else if (b > 12) { month = a; day = b; }
     else if (order === "dmy") { day = a; month = b; }
     else if (order === "mdy") { month = a; day = b; }
     else return value;
   }
+
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
     ? `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : value;
@@ -138,10 +152,25 @@ function normalizeNumber(value: string) {
   let raw = value.replace(/[\u00A0\u202F ]/g, "").replace(/[’']/g, "");
   const parenthesized = /^\(.+\)$/.test(raw); if (parenthesized) raw = raw.slice(1, -1);
   if (!/^[-+]?\d[\d.,]*$/.test(raw)) return value;
+
   const comma = raw.lastIndexOf(","), dot = raw.lastIndexOf(".");
-  if (comma >= 0 && dot >= 0) raw = comma > dot ? raw.replaceAll(".", "").replace(",", ".") : raw.replaceAll(",", "");
-  else if (comma >= 0) { const parts = raw.split(","); raw = parts.length > 2 || parts.at(-1)?.length === 3 ? parts.join("") : `${parts[0]}.${parts[1]}`; }
-  else if (dot >= 0) { const parts = raw.split("."); if (parts.length > 2 || parts[1]?.length === 3) raw = parts.join(""); }
+  if (comma >= 0 && dot >= 0) {
+    raw = comma > dot ? raw.replaceAll(".", "").replace(",", ".") : raw.replaceAll(",", "");
+  } else {
+    const separator = comma >= 0 ? "," : dot >= 0 ? "." : null;
+    if (separator) {
+      const parts = raw.split(separator);
+      if (parts.length > 2) {
+        if (!parts.slice(1).every((part) => part.length === 3)) return value;
+        raw = parts.join("");
+      } else if (parts[1]?.length === 3) {
+        return value;
+      } else if (parts[1]?.length === 1 || parts[1]?.length === 2) {
+        raw = `${parts[0]}.${parts[1]}`;
+      }
+    }
+  }
+
   return /^[-+]?\d+(\.\d+)?$/.test(raw) ? (parenthesized ? `-${raw}` : raw) : value;
 }
 
@@ -176,10 +205,21 @@ function decode(buffer: ArrayBuffer) {
   catch {
     const candidates = [["Big5", "big5"], ["Shift-JIS", "shift_jis"], ["Windows-1252", "windows-1252"]].map(([label, name]) => {
       const text = new TextDecoder(name).decode(buffer);
-      const score = (text.match(/�/g) ?? []).length * 30 + (text.match(/[\u0000-\u0008\u000E-\u001F]/g) ?? []).length * 20 + (name === "windows-1252" ? (text.match(/[À-ÿ]/g) ?? []).length * 4 : 0);
+      const replacements = (text.match(/�/g) ?? []).length;
+      const controls = (text.match(/[\u0000-\u0008\u000E-\u001F]/g) ?? []).length;
+      const kana = (text.match(/[\u3040-\u30ff\uff66-\uff9f]/g) ?? []).length;
+      const han = (text.match(/[\u3400-\u9fff]/g) ?? []).length;
+      const latin = (text.match(/[A-Za-zÀ-ÿ]/g) ?? []).length;
+      let score = replacements * 100 + controls * 30;
+      if (name === "shift_jis") score -= kana * 4 + han;
+      else if (name === "big5") score -= han * 2; else score -= latin;
+      if (name === "windows-1252" && (kana || han)) score += (kana + han) * 8;
       return { text, encoding: label, score };
     }).sort((a, b) => a.score - b.score);
-    return candidates[0];
+
+    const best = candidates[0], second = candidates[1];
+    const confidenceGap = second.score - best.score;
+    return { text: best.text, encoding: confidenceGap >= 8 ? best.encoding : `${best.encoding} (uncertain)` };
   }
 }
 
@@ -246,7 +286,7 @@ export default function Home() {
     <header className="site-header">
       <a className="brand" href="#top"><span className="brand-mark">DF</span><span>Data<b>Fix</b></span></a>
       <div className="privacy-pill"><span>●</span>{t.privacy}</div>
-      <nav className="header-actions"><div className="language-switch"><button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button><button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>繁中</button></div><a className="github-link" href="https://github.com/mickey921205" target="_blank" rel="noreferrer">{t.github}</a></nav>
+      <nav className="header-actions"><div className="language-switch"><button className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button><button className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>繁中</button></div><a className="github-link" href="https://github.com/mickey921205/datafix" target="_blank" rel="noreferrer">{t.github}</a></nav>
     </header>
     <section className="hero" id="top"><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.title1}<br /><em>{t.title2}</em></h1><p className="hero-copy">{t.intro}</p><div className="format-list"><span>CSV</span><span>TSV</span><span>JSON</span><span>UTF-8</span><span>BIG5</span><span>SHIFT-JIS</span><span>WIN-1252</span></div></div><div className="hero-aside" aria-hidden="true"><span>1.234,50</span><strong>→</strong><span>1234.50</span><span>31/12/24</span><strong>→</strong><span>2024-12-31</span><div className="mini-grid"><i /><i /><i /><i /><i /><i /></div></div></section>
     <section className="workspace">
@@ -274,6 +314,6 @@ export default function Home() {
       </div>
     </section>
     <section className="explain-section"><p className="eyebrow">{t.lowerEyebrow}</p><h2>{t.lowerTitle}</h2><div className="feature-grid"><article><span>01</span><h3>{t.f1}</h3><p>{t.p1}</p></article><article><span>02</span><h3>{t.f2}</h3><p>{t.p2}</p></article><article><span>03</span><h3>{t.f3}</h3><p>{t.p3}</p></article></div></section>
-    <footer><span>DataFix</span><p>{t.footer}</p><a href="https://github.com/mickey921205" target="_blank" rel="noreferrer">{t.github}</a></footer>
+    <footer><span>DataFix</span><p>{t.footer}</p><a href="https://github.com/mickey921205/datafix" target="_blank" rel="noreferrer">{t.github}</a></footer>
   </main>;
 }

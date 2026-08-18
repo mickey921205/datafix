@@ -36,6 +36,18 @@ const eslintConfig = defineConfig([
       },
     },
   },
+  {
+    files: ["app/page.tsx", "tests/rendered-html.test.mjs"],
+    rules: {
+      "no-useless-escape": "off",
+    },
+  },
+  {
+    files: ["app/page.tsx"],
+    rules: {
+      "no-control-regex": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
