@@ -16,12 +16,18 @@ function executableFunction(start, end, name) {
   const source = sourceBetween(start, end)
     .replaceAll(": string", "")
     .replaceAll(": number", "")
-    .replaceAll(": DateOrder", "");
+    .replaceAll(": DateOrder", "")
+    .replaceAll(": ArrayBuffer", "");
   return new Function(`${source}; return ${name};`)();
 }
 
 const normalizeDate = executableFunction("function normalizeDate", "function normalizeNumber", "normalizeDate");
 const normalizeNumber = executableFunction("function normalizeNumber", "function cleanCell", "normalizeNumber");
+const decode = executableFunction("function decode", "function infer", "decode");
+
+function bytes(values) {
+  return Uint8Array.from(values).buffer;
+}
 
 test("normalizes two-digit Gregorian years without confusing them with ROC years", () => {
   assert.equal(normalizeDate("31/12/24", "auto"), "2024-12-31");
@@ -53,13 +59,22 @@ test("normalizes unambiguous US, European and grouped numeric formats", () => {
   assert.equal(normalizeNumber("(1,234.56)"), "-1234.56");
 });
 
-test("legacy encoding detection exposes low confidence instead of claiming certainty", () => {
-  const source = sourceBetween("function decode", "function infer");
-  assert.match(source, /confidenceGap/);
-  assert.match(source, /\(uncertain\)/);
-  assert.match(source, /shift_jis/);
-  assert.match(source, /big5/);
-  assert.match(source, /windows-1252/);
+test("detects representative Big5 bytes as Traditional Chinese", () => {
+  const result = decode(bytes([193,99,197,233,164,164,164,229,161,65,184,234,174,198,178,77,178,122]));
+  assert.equal(result.text, "繁體中文，資料清理");
+  assert.match(result.encoding, /^Big5(?: \(uncertain\))?$/);
+});
+
+test("detects representative Shift-JIS bytes as Japanese", () => {
+  const result = decode(bytes([147,250,150,123,140,234,131,102,129,91,131,94]));
+  assert.equal(result.text, "日本語データ");
+  assert.match(result.encoding, /^Shift-JIS(?: \(uncertain\))?$/);
+});
+
+test("detects representative Windows-1252 bytes as Western European text", () => {
+  const result = decode(bytes([99,97,102,233,32,114,233,115,117,109,233,32,150,32,128]));
+  assert.equal(result.text, "café résumé – €");
+  assert.match(result.encoding, /^Windows-1252(?: \(uncertain\))?$/);
 });
 
 test("project links point directly to the DataFix repository", () => {

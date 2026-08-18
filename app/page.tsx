@@ -204,7 +204,20 @@ function decode(buffer: ArrayBuffer) {
   try { return { text: new TextDecoder("utf-8", { fatal: true }).decode(buffer), encoding: "UTF-8" }; }
   catch {
     const candidates = [["Big5", "big5"], ["Shift-JIS", "shift_jis"], ["Windows-1252", "windows-1252"]].map(([label, name]) => {
-      const text = new TextDecoder(name).decode(buffer);
+      let text = new TextDecoder(name).decode(buffer);
+      if (name === "windows-1252") {
+        text = text.replace(/[\u0080-\u009F]/g, (char) => {
+          switch (char.charCodeAt(0)) {
+            case 0x80: return "€"; case 0x82: return "‚"; case 0x83: return "ƒ"; case 0x84: return "„";
+            case 0x85: return "…"; case 0x86: return "†"; case 0x87: return "‡"; case 0x88: return "ˆ";
+            case 0x89: return "‰"; case 0x8a: return "Š"; case 0x8b: return "‹"; case 0x8c: return "Œ";
+            case 0x8e: return "Ž"; case 0x91: return "‘"; case 0x92: return "’"; case 0x93: return "“";
+            case 0x94: return "”"; case 0x95: return "•"; case 0x96: return "–"; case 0x97: return "—";
+            case 0x98: return "˜"; case 0x99: return "™"; case 0x9a: return "š"; case 0x9b: return "›";
+            case 0x9c: return "œ"; case 0x9e: return "ž"; case 0x9f: return "Ÿ"; default: return char;
+          }
+        });
+      }
       const replacements = (text.match(/�/g) ?? []).length;
       const controls = (text.match(/[\u0000-\u0008\u000E-\u001F]/g) ?? []).length;
       const kana = (text.match(/[\u3040-\u30ff\uff66-\uff9f]/g) ?? []).length;
