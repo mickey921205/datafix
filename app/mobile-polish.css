@@ -15,6 +15,35 @@
   text-align: center;
 }
 
+.sheet-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.sheet-picker span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sheet-picker select {
+  min-width: 180px;
+  max-width: 100%;
+  padding: 9px 32px 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
 @media (max-width: 900px) {
   .hero-aside {
     transform: none;
@@ -118,6 +147,18 @@
   .mini-grid {
     gap: 6px;
     margin-top: 10px;
+  }
+
+  .sheet-picker {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px 14px;
+  }
+
+  .sheet-picker select {
+    width: 100%;
+    min-width: 0;
   }
 }
 
