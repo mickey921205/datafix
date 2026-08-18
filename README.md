@@ -1,14 +1,14 @@
 # DataFix
 
-**Privacy-first data cleaning for messy CSV, TSV and JSON files — entirely in your browser.**
+**Privacy-first data cleaning for messy XLSX, CSV, TSV and JSON files — entirely in your browser.**
 
 [**Try DataFix online →**](https://datafix-tw.mickey921205.workers.dev)
 
 <p align="center">
-  <img src="docs/datafix-mobile-showcase.svg" alt="DataFix mobile demo showing local-first CSV, TSV and JSON cleaning with number and date normalization" width="620" />
+  <img src="docs/datafix-mobile-showcase.svg" alt="DataFix mobile demo showing local-first XLSX, CSV, TSV and JSON cleaning with number and date normalization" width="620" />
 </p>
 
-DataFix helps clean tabular data from different regions without uploading the source file to a server. It focuses on the annoying problems that appear when data crosses systems, locales and encodings: Big5, Shift-JIS, inconsistent dates, decimal separators, full-width characters, missing values and broken column names.
+DataFix helps clean tabular data from different regions without uploading the source file to a server. It focuses on the annoying problems that appear when data crosses systems, locales and encodings: Excel workbooks, Big5, Shift-JIS, inconsistent dates, decimal separators, full-width characters, missing values and broken column names.
 
 > Your data stays on your device. Parsing, cleaning, previewing and exporting happen locally in the browser.
 
@@ -16,6 +16,7 @@ DataFix helps clean tabular data from different regions without uploading the so
 
 Real-world data is rarely clean. A single dataset may contain:
 
+- Excel `.xlsx` workbooks with one or more worksheets
 - UTF-8, Big5, Shift-JIS or Windows-1252 text
 - `1,234.56` and `1.234,56` numeric formats
 - different date conventions such as `2026/08/18`, `18/08/2026` and `08/18/2026`
@@ -27,6 +28,8 @@ DataFix aims to make these files usable with a quick local workflow instead of r
 
 ## Features
 
+- Import `.xlsx` locally and switch between worksheets
+- Export the cleaned worksheet back to `.xlsx`
 - Detect UTF-8, Big5, Shift-JIS and Windows-1252 text
 - Normalize international date formats to ISO dates
 - Handle US and European decimal and thousands separators
@@ -37,6 +40,10 @@ DataFix aims to make these files usable with a quick local workflow instead of r
 - Compare original and cleaned data with highlighted changes
 - Export UTF-8 CSV or JSON
 - English, Traditional Chinese and Simplified Chinese interface
+
+### XLSX behavior
+
+The first XLSX implementation intentionally focuses on clean tabular values rather than lossless workbook editing. Files are parsed locally in the browser, multi-sheet workbooks can be switched in the UI, and the selected cleaned sheet can be exported to a new `.xlsx` file. Workbook styling is not preserved, and DataFix does not evaluate formulas itself; cached/displayed values are used when present.
 
 ## Privacy
 
@@ -82,10 +89,10 @@ Use the synthetic dirty-data fixture at [`examples/global-messy-data.csv`](examp
 
 The public roadmap is tracked in GitHub Issues. Current priorities include:
 
-- Local Excel `.xlsx` import and export
 - Editable per-column cleaning rules
 - Duplicate detection and merge suggestions
 - Reusable cleaning profiles
+- Richer Excel workbook preservation
 - CLI and npm library
 - More real-world fixtures from different regions
 
