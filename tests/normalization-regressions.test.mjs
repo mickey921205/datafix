@@ -14,6 +14,10 @@ function sourceBetween(start, end) {
 
 function executableFunction(start, end, name) {
   const source = sourceBetween(start, end)
+    .replaceAll("<string, number>", "")
+    .replaceAll(": string[]", "")
+    .replaceAll(": Row[]", "")
+    .replaceAll(": Row", "")
     .replaceAll(": string", "")
     .replaceAll(": number", "")
     .replaceAll(": DateOrder", "")
@@ -21,6 +25,9 @@ function executableFunction(start, end, name) {
   return new Function(`${source}; return ${name};`)();
 }
 
+const uniqueHeaders = executableFunction("function uniqueHeaders", "function detectDelimiter", "uniqueHeaders");
+const detectDelimiter = executableFunction("function detectDelimiter", "function parseDelimited", "detectDelimiter");
+const parseDelimited = executableFunction("function parseDelimited", "function normalizeDate", "parseDelimited");
 const normalizeDate = executableFunction("function normalizeDate", "function normalizeNumber", "normalizeDate");
 const normalizeNumber = executableFunction("function normalizeNumber", "function cleanCell", "normalizeNumber");
 const decode = executableFunction("function decode", "function infer", "decode");
@@ -28,6 +35,29 @@ const decode = executableFunction("function decode", "function infer", "decode")
 function bytes(values) {
   return Uint8Array.from(values).buffer;
 }
+
+test("repairs blank and duplicate headers deterministically", () => {
+  assert.deepEqual(uniqueHeaders([" name ", "name", "", "Ｎａｍｅ"]), ["name", "name_2", "column_3", "Name"]);
+  assert.deepEqual(uniqueHeaders(["", "", "id", "id"]), ["column_1", "column_2", "id", "id_2"]);
+});
+
+test("detects delimiters while ignoring delimiters inside quotes", () => {
+  assert.equal(detectDelimiter('name,amount\nAlice,"1,234.50"'), ",");
+  assert.equal(detectDelimiter("name\tamount\nAlice\t123"), "\t");
+  assert.equal(detectDelimiter("name;amount\nAlice;123"), ";");
+});
+
+test("parses quoted delimiters, escaped quotes and multiline fields", () => {
+  assert.deepEqual(parseDelimited('name,note\r\nAlice,"hello, world"\r\nBob,"said ""hi"""', ","), [
+    ["name", "note"],
+    ["Alice", "hello, world"],
+    ["Bob", 'said "hi"'],
+  ]);
+  assert.deepEqual(parseDelimited('name,note\nAlice,"line 1\nline 2"', ","), [
+    ["name", "note"],
+    ["Alice", "line 1\nline 2"],
+  ]);
+});
 
 test("normalizes two-digit Gregorian years without confusing them with ROC years", () => {
   assert.equal(normalizeDate("31/12/24", "auto"), "2024-12-31");
