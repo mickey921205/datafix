@@ -11,7 +11,7 @@
     "start": "vinext start",
     "preview": "npm run build && vite preview",
     "deploy": "npm run build && wrangler deploy",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
