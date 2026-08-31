@@ -2,6 +2,7 @@
 
 import { ChangeEvent, DragEvent, useMemo, useRef, useState } from "react";
 import { readXlsx, writeXlsx } from "../lib/xlsx.js";
+import { analyzeDuplicates, removeExactDuplicates } from "../lib/duplicates.js";
 
 type Row = string[];
 type Locale = "en" | "zhHant" | "zhHans";
@@ -37,6 +38,7 @@ const messages = {
     cleaned: "Cleaned", original: "Original", showing: "Showing first", empty: "empty",
     downloadTitle: "Ready to use", downloadHint: "Export clean UTF-8 files or a clean XLSX workbook.",
     json: "Download JSON", csv: "Download UTF-8 CSV ↓", xlsx: "Download XLSX", sheet: "Worksheet",
+    duplicates: "Exact duplicates", duplicatesFound: "duplicate rows found", duplicateMode: "Duplicate handling", keepAll: "Keep all rows", keepFirst: "Keep first only", duplicateBadge: "duplicate",
     lowerEyebrow: "ONE TOOL · MANY REGIONS", lowerTitle: "Built for the files people actually exchange.",
     f1: "Regional formats, one clean output", p1: "Convert European and US number styles, international dates, full-width characters and legacy encodings into portable data.",
     f2: "Review every transformation", p2: "Compare original and cleaned values, see exactly what changed, and choose only the rules you trust.",
@@ -65,6 +67,7 @@ const messages = {
     cleaned: "清理後", original: "原始資料", showing: "顯示前", empty: "空值",
     downloadTitle: "清理完成", downloadHint: "可匯出 UTF-8 格式或乾淨的 XLSX 活頁簿。",
     json: "下載 JSON", csv: "下載 UTF-8 CSV ↓", xlsx: "下載 XLSX", sheet: "工作表",
+    duplicates: "完全重複資料", duplicatesFound: "列重複資料", duplicateMode: "重複資料處理", keepAll: "保留全部", keepFirst: "只保留第一筆", duplicateBadge: "重複",
     lowerEyebrow: "一個工具 · 處理各地資料", lowerTitle: "專為日常真正會遇到的資料檔打造。",
     f1: "各地格式，統一輸出", p1: "處理歐美數字格式、國際日期、全形字元與傳統編碼，輸出可攜的標準資料。",
     f2: "每次修改都看得見", p2: "比較原始與清理後內容、確認修改數量，並自行選擇可信任的規則。",
@@ -93,6 +96,7 @@ const messages = {
     cleaned: "清理后", original: "原始数据", showing: "显示前", empty: "空值",
     downloadTitle: "清理完成", downloadHint: "可导出 UTF-8 格式或干净的 XLSX 工作簿。",
     json: "下载 JSON", csv: "下载 UTF-8 CSV ↓", xlsx: "下载 XLSX", sheet: "工作表",
+    duplicates: "完全重复数据", duplicatesFound: "行重复数据", duplicateMode: "重复数据处理", keepAll: "保留全部", keepFirst: "只保留第一条", duplicateBadge: "重复",
     lowerEyebrow: "一个工具 · 处理各地数据", lowerTitle: "专为日常真正会遇到的数据文件打造。",
     f1: "各地格式，统一输出", p1: "处理欧美数字格式、国际日期、全角字符与传统编码，输出可移植的标准数据。",
     f2: "每次修改都看得见", p2: "比较原始与清理后的内容、确认修改数量，并自行选择可信任的规则。",
@@ -279,15 +283,17 @@ export default function Home() {
   const [dataset, setDataset] = useState<Dataset | null>(null); const [rawRows, setRawRows] = useState<Row[] | null>(null);
   const [source, setSource] = useState({ fileName: "", encoding: "", delimiter: "," });
   const [xlsxSheets, setXlsxSheets] = useState<XlsxSheet[]>([]); const [activeSheet, setActiveSheet] = useState("");
-  const [view, setView] = useState<"clean" | "original">("clean"); const [dragging, setDragging] = useState(false); const [error, setError] = useState("");
+  const [view, setView] = useState<"clean" | "original">("clean"); const [duplicateMode, setDuplicateMode] = useState<"keep" | "first">("keep"); const [dragging, setDragging] = useState(false); const [error, setError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const types = useMemo(() => dataset ? dataset.headers.map((_, i) => infer(dataset.rows.map((row) => row[i] ?? ""))) : [], [dataset]);
   const total = dataset ? Object.values(dataset.changes).reduce((sum, count) => sum + (count ?? 0), 0) : 0;
+  const duplicateInfo = useMemo(() => analyzeDuplicates(dataset?.rows ?? []), [dataset]);
+  const exportRows = useMemo(() => dataset ? (duplicateMode === "first" ? removeExactDuplicates(dataset.rows) : dataset.rows) : [], [dataset, duplicateMode]);
 
   function refresh(next: Settings) { setSettings(next); if (rawRows) setDataset(buildDataset(rawRows, source.fileName, source.encoding, source.delimiter, next)); }
   function loadRows(rows: Row[], fileName: string, encoding: string, delimiter: string) {
     if (rows.length < 2) throw new Error(t.errors.rows); if (rows.length > 50001) throw new Error(t.errors.limit);
-    setRawRows(rows); setSource({ fileName, encoding, delimiter }); setDataset(buildDataset(rows, fileName, encoding, delimiter, settings)); setView("clean"); setError("");
+    setRawRows(rows); setSource({ fileName, encoding, delimiter }); setDataset(buildDataset(rows, fileName, encoding, delimiter, settings)); setView("clean"); setDuplicateMode("keep"); setError("");
   }
   async function processFile(file: File) {
     try {
@@ -315,15 +321,15 @@ export default function Home() {
   function fileChanged(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (file) void processFile(file); event.target.value = ""; }
   function dropped(event: DragEvent<HTMLDivElement>) { event.preventDefault(); setDragging(false); const file = event.dataTransfer.files?.[0]; if (file) void processFile(file); }
   function csv() {
-    if (!dataset) return; const body = [dataset.headers, ...dataset.rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    if (!dataset) return; const body = [dataset.headers, ...exportRows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
     download(`\uFEFF${body}`, "text/csv;charset=utf-8", `${dataset.fileName.replace(/\.[^.]+$/, "")}_clean.csv`);
   }
   function json() {
-    if (!dataset) return; const rows = dataset.rows.map((row) => Object.fromEntries(dataset.headers.map((h, i) => [h, row[i] ?? ""])));
+    if (!dataset) return; const rows = exportRows.map((row) => Object.fromEntries(dataset.headers.map((h, i) => [h, row[i] ?? ""])));
     download(JSON.stringify(rows, null, 2), "application/json", `${dataset.fileName.replace(/\.[^.]+$/, "")}_clean.json`);
   }
   function xlsx() {
-    if (!dataset) return; const blob = writeXlsx([dataset.headers, ...dataset.rows], activeSheet || "Cleaned");
+    if (!dataset) return; const blob = writeXlsx([dataset.headers, ...exportRows], activeSheet || "Cleaned");
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${dataset.fileName.replace(/\.[^.]+$/, "")}_clean.xlsx`; a.click(); URL.revokeObjectURL(url);
   }
   const headers = dataset ? (view === "clean" ? dataset.headers : dataset.originalHeaders) : [];
@@ -365,8 +371,9 @@ export default function Home() {
           {xlsxSheets.length > 1 && <label className="sheet-picker"><span>{t.sheet}</span><select value={activeSheet} onChange={(e) => switchSheet(e.target.value)}>{xlsxSheets.map((sheet) => <option key={sheet.name} value={sheet.name}>{sheet.name}</option>)}</select></label>}
           <div className="summary-grid"><article><small>{t.encoding}</small><strong>{dataset.encoding}</strong><span className="status-dot">{t.detected}</span></article><article><small>{t.format}</small><strong>{delimiterNames[dataset.delimiter] ?? "Delimited"}</strong><span>{t.detected}</span></article><article><small>{t.changes}</small><strong>{total.toLocaleString()} <i>cells</i></strong><span>{t.local}</span></article><article><small>{t.status}</small><strong className="ready">{t.ready}</strong><span>✓</span></article></div>
           <div className="change-strip">{Object.entries(dataset.changes).length ? Object.entries(dataset.changes).map(([name, count]) => <span key={name}><b>{count}</b> {t.change[name as ChangeKey]}</span>) : <span>{t.noChanges}</span>}</div>
+          <div className={`duplicate-panel ${duplicateInfo.duplicateCount ? "has-duplicates" : ""}`}><div><strong>{t.duplicates}</strong><span><b>{duplicateInfo.duplicateCount.toLocaleString()}</b> {t.duplicatesFound}</span></div><label><span>{t.duplicateMode}</span><select value={duplicateMode} onChange={(e) => setDuplicateMode(e.target.value as "keep" | "first")}><option value="keep">{t.keepAll}</option><option value="first">{t.keepFirst}</option></select></label></div>
           <div className="table-toolbar"><div><button className={view === "clean" ? "active" : ""} onClick={() => setView("clean")}>{t.cleaned}</button><button className={view === "original" ? "active" : ""} onClick={() => setView("original")}>{t.original}</button></div><small>{t.showing} {Math.min(rows.length, 20)}</small></div>
-          <div className="table-wrap"><table><thead><tr><th>#</th>{headers.map((h, i) => <th key={`${h}-${i}`}><span>{h || "(unnamed)"}</span><small>{types[i]}</small></th>)}</tr></thead><tbody>{rows.slice(0, 20).map((row, ri) => <tr key={ri}><td>{ri + 1}</td>{headers.map((_, ci) => { const value = row[ci] ?? ""; const changed = dataset.originalRows[ri]?.[ci] !== dataset.rows[ri]?.[ci]; return <td key={ci} className={view === "clean" && changed ? "changed" : ""}>{value || <span className="empty">{t.empty}</span>}</td>; })}</tr>)}</tbody></table></div>
+          <div className="table-wrap"><table><thead><tr><th>#</th>{headers.map((h, i) => <th key={`${h}-${i}`}><span>{h || "(unnamed)"}</span><small>{types[i]}</small></th>)}</tr></thead><tbody>{rows.slice(0, 20).map((row, ri) => <tr key={ri} className={view === "clean" && duplicateInfo.duplicateIndexes.has(ri) ? "duplicate-row" : ""}><td>{ri + 1}{view === "clean" && duplicateInfo.duplicateIndexes.has(ri) && <small className="duplicate-badge">{t.duplicateBadge}</small>}</td>{headers.map((_, ci) => { const value = row[ci] ?? ""; const changed = dataset.originalRows[ri]?.[ci] !== dataset.rows[ri]?.[ci]; return <td key={ci} className={view === "clean" && changed ? "changed" : ""}>{value || <span className="empty">{t.empty}</span>}</td>; })}</tr>)}</tbody></table></div>
           <div className="download-bar"><div><strong>{t.downloadTitle}</strong><p>{t.downloadHint}</p></div><button className="secondary-button" onClick={json}>{t.json}</button>{source.delimiter === "xlsx" && <button className="secondary-button" onClick={xlsx}>{t.xlsx}</button>}<button className="primary-button" onClick={csv}>{t.csv}</button></div>
         </div>}
       </div>
