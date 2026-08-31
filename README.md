@@ -8,9 +8,9 @@
   <img src="docs/datafix-mobile-showcase.svg" alt="DataFix mobile demo showing local-first XLSX, CSV, TSV and JSON cleaning with number and date normalization" width="620" />
 </p>
 
-DataFix helps clean tabular data from different regions without uploading the source file to a server. It focuses on the annoying problems that appear when data crosses systems, locales and encodings: Excel workbooks, Big5, Shift-JIS, inconsistent dates, decimal separators, full-width characters, missing values and broken column names.
+DataFix helps clean tabular data from different regions without uploading the source file to a server. It focuses on the annoying problems that appear when data crosses systems, locales and encodings: Excel workbooks, Big5, Shift-JIS, inconsistent dates, decimal separators, full-width characters, missing values, duplicate rows and broken column names.
 
-> Your data stays on your device. Parsing, cleaning, previewing and exporting happen locally in the browser.
+> Your data stays on your device. Parsing, cleaning, duplicate detection, previewing and exporting happen locally in the browser.
 
 ## Why DataFix?
 
@@ -21,6 +21,7 @@ Real-world data is rarely clean. A single dataset may contain:
 - `1,234.56` and `1.234,56` numeric formats
 - different date conventions such as `2026/08/18`, `18/08/2026` and `08/18/2026`
 - full-width characters copied from East Asian systems
+- exact duplicate rows after exports are combined
 - blank, duplicated or malformed column names
 - inconsistent missing-value markers and whitespace
 
@@ -36,10 +37,16 @@ DataFix aims to make these files usable with a quick local workflow instead of r
 - Convert full-width characters to standard width
 - Trim whitespace and unify common missing-value markers
 - Repair empty and duplicate column names
+- Detect exact duplicate rows after cleaning and highlight them for review
+- Choose whether exports keep every row or keep only the first exact duplicate
 - Infer text, number, date and email columns
 - Compare original and cleaned data with highlighted changes
 - Export UTF-8 CSV or JSON
 - English, Traditional Chinese and Simplified Chinese interface
+
+### Duplicate handling
+
+DataFix detects exact duplicate rows after the selected cleaning rules are applied. Duplicates are highlighted in the cleaned preview, and nothing is removed automatically. Before export, users can keep every row or keep only the first row from each exact-duplicate group. Fuzzy matching and merge suggestions remain future work.
 
 ### XLSX behavior
 
@@ -90,7 +97,7 @@ Use the synthetic dirty-data fixture at [`examples/global-messy-data.csv`](examp
 The public roadmap is tracked in GitHub Issues. Current priorities include:
 
 - Editable per-column cleaning rules
-- Duplicate detection and merge suggestions
+- Fuzzy duplicate matching and merge suggestions
 - Reusable cleaning profiles
 - Richer Excel workbook preservation
 - CLI and npm library
