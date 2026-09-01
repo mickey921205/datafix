@@ -30,21 +30,16 @@ const normalizeDate = executableFunction("function normalizeDate", "function nor
 const normalizeNumber = executableFunction("function normalizeNumber", "function cleanCell", "normalizeNumber");
 const decode = executableFunction("function decode", "function infer", "decode");
 
-function buffer(...parts) {
-  const values = parts.flatMap((part) => typeof part === "string" ? [...Buffer.from(part, "ascii")] : part);
+function bytes(values) {
   return Uint8Array.from(values).buffer;
 }
 
 test("Taiwan Big5 fixture survives decode, CSV parsing and ROC/date-number cleanup", () => {
-  // Big5 bytes for 繁體中文，資料清理 embedded in an otherwise ASCII CSV row.
-  const text = decode(buffer(
-    "name,amount,date,note\r\nAlice,1.234,56,113/08/05,",
-    [193, 99, 197, 233, 164, 164, 164, 229, 161, 65, 184, 234, 174, 198, 178, 77, 178, 122],
-  ));
-  assert.match(text.encoding, /^Big5(?: \(uncertain\))?$/);
+  const note = decode(bytes([193, 99, 197, 233, 164, 164, 164, 229, 161, 65, 184, 234, 174, 198, 178, 77, 178, 122]));
+  assert.equal(note.text, "繁體中文，資料清理");
+  assert.match(note.encoding, /^Big5(?: \(uncertain\))?$/);
 
-  // Use a quoted European number because the comma is the CSV delimiter.
-  const csv = text.text.replace("Alice,1.234,56", 'Alice,"1.234,56"');
+  const csv = `name,amount,date,note\r\nAlice,"1.234,56",113/08/05,${note.text}`;
   assert.equal(detectDelimiter(csv), ",");
   const rows = parseDelimited(csv, ",");
   assert.equal(rows[1][3], "繁體中文，資料清理");
@@ -53,28 +48,23 @@ test("Taiwan Big5 fixture survives decode, CSV parsing and ROC/date-number clean
 });
 
 test("Japan Shift-JIS fixture survives decode and preserves quoted delimiters", () => {
-  const text = decode(buffer(
-    "name,note,amount\nTaro,\"",
-    [147, 250, 150, 123, 140, 234, 131, 102, 129, 91, 131, 94],
-    ", Tokyo\",1,23",
-  ));
-  assert.match(text.encoding, /^Shift-JIS(?: \(uncertain\))?$/);
+  const note = decode(bytes([147, 250, 150, 123, 140, 234, 131, 102, 129, 91, 131, 94]));
+  assert.equal(note.text, "日本語データ");
+  assert.match(note.encoding, /^Shift-JIS(?: \(uncertain\))?$/);
 
-  const csv = text.text.replace(",1,23", ',"1,23"');
+  const csv = `name,note,amount\nTaro,"${note.text}, Tokyo","1,23"`;
   const rows = parseDelimited(csv, detectDelimiter(csv));
   assert.equal(rows[1][1], "日本語データ, Tokyo");
   assert.equal(normalizeNumber(rows[1][2]), "1.23");
 });
 
 test("Western European Windows-1252 fixture decodes punctuation and accounting values", () => {
-  const text = decode(buffer(
-    "name,note,amount\nAna,",
-    [99, 97, 102, 233, 32, 114, 233, 115, 117, 109, 233, 32, 150, 32, 128],
-    ',"(1,234.56)"',
-  ));
-  assert.match(text.encoding, /^Windows-1252(?: \(uncertain\))?$/);
+  const note = decode(bytes([99, 97, 102, 233, 32, 114, 233, 115, 117, 109, 233, 32, 150, 32, 128]));
+  assert.equal(note.text, "café résumé – €");
+  assert.match(note.encoding, /^Windows-1252(?: \(uncertain\))?$/);
 
-  const rows = parseDelimited(text.text, detectDelimiter(text.text));
+  const csv = `name,note,amount\nAna,${note.text},"(1,234.56)"`;
+  const rows = parseDelimited(csv, detectDelimiter(csv));
   assert.equal(rows[1][1], "café résumé – €");
   assert.equal(normalizeNumber(rows[1][2]), "-1234.56");
 });
